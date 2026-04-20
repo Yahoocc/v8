@@ -2702,7 +2702,8 @@ TEST(CodeSerializerThreeBigStrings) {
 }
 
 class SerializerOneByteResource
-    : public v8::String::ExternalOneByteStringResource {
+    : public v8::String::ExternalOneByteStringResource,
+      public v8::String::TaintTrackingStringBufferImpl {
  public:
   SerializerOneByteResource(const char* data, size_t length)
       : data_(data), length_(length), dispose_count_(0) {}
@@ -2717,7 +2718,10 @@ class SerializerOneByteResource
   int dispose_count_;
 };
 
-class SerializerTwoByteResource : public v8::String::ExternalStringResource {
+
+class SerializerTwoByteResource :
+ public v8::String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   SerializerTwoByteResource(const uint16_t* data, size_t length)
       : data_(data), length_(length), dispose_count_(0) {}

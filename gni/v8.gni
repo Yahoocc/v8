@@ -42,6 +42,12 @@ declare_args() {
   # the JS builtins sources and the start snapshot.
   v8_use_external_startup_data = ""
 
+
+# Taint tracking arguments:
+#
+# Adds capnp path to the build for taint tracking
+  v8_capnp_include_dir = ""
+
   # Includes profiles to optimize builtins.
   v8_enable_builtins_optimization = ""
 
@@ -287,6 +293,11 @@ declare_args() {
 
 assert(!v8_enable_debugging_features || v8_enable_verification_features,
        "Debugging features require verification features.")
+
+
+# Sets -DV8_TAINT_TRACKING_INCLUDE_CONCOLIC for setting up a concolic
+# execution build
+v8_taint_tracking_include_concolic = false
 
 if (v8_use_external_startup_data == "") {
   # If not specified as a gn arg, use external startup data by default if
