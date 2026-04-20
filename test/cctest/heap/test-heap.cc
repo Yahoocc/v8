@@ -3709,7 +3709,8 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
   CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 }
 
-class SourceResource : public v8::String::ExternalOneByteStringResource {
+class SourceResource : public v8::String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit SourceResource(const char* data)
     : data_(data), length_(strlen(data)) { }

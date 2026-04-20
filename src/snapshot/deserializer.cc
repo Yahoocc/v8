@@ -35,7 +35,7 @@
 #include "src/snapshot/shared-heap-serializer.h"
 #include "src/snapshot/snapshot-data.h"
 #include "src/utils/memcopy.h"
-
+#include "src/taint_tracking.h"
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
 

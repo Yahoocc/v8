@@ -1,7 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
 #include "src/snapshot/code-serializer.h"
 
 #include <memory>
@@ -28,6 +27,7 @@
 #include "src/snapshot/snapshot-utils.h"
 #include "src/snapshot/snapshot.h"
 #include "src/utils/version.h"
+#include "src/taint_tracking.h"
 
 namespace v8 {
 namespace internal {
@@ -746,7 +746,8 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
 
   // Set header values.
   SetMagicNumber();
-  SetHeaderValue(kVersionHashOffset, Version::Hash());
+  SetHeaderValue(kVersionHashOffset,
+                   Version::Hash() ^ tainttracking::LayoutVersionHash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,

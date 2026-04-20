@@ -55,6 +55,10 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
         ASSIGN_RETURN_ON_EXCEPTION(isolate, param,
                                    Object::ToString(isolate, args.at(i)));
         param = String::Flatten(isolate, param);
+
+        tainttracking::LogIfTainted(Handle<String>::cast(param),
+                                     tainttracking::TaintSinkLabel::JAVASCRIPT,
+                                     i - 1);
         builder.AppendString(param);
       }
     }
@@ -65,6 +69,12 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
       DirectHandle<String> body;
       ASSIGN_RETURN_ON_EXCEPTION(isolate, body,
                                  Object::ToString(isolate, args.at(argc)));
+
+ 
+    tainttracking::LogIfTainted(Handle<String>::cast(body),
+              tainttracking::TaintSinkLabel::JAVASCRIPT,
+                    argc - 1);
+
       builder.AppendString(body);
     }
     builder.AppendCStringLiteral("\n})");
@@ -78,9 +88,11 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
       break;
     }
   }
-
+  
   // Compile the string in the constructor and not a helper so that errors to
   // come from here.
+
+
   DirectHandle<JSFunction> function;
   {
     ASSIGN_RETURN_ON_EXCEPTION(
