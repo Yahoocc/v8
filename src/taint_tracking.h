@@ -463,8 +463,6 @@ void RuntimeParameterToContextStorage(
 
 #endif
 
-src/v8.cc                          |   3 -
-test/cctest/test-taint-tracking.cc |   7 +-
-20 files changed, 346 insertions(+), 190 deletions(-)
-create mode 100644 TAINT_TRACKING_README
-create mode 100644 src/taint_tracking-inl.h
+// Local Variables:
+// mode: c++
+// End:
