@@ -30,6 +30,7 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/rewriter.h"
 #include "src/runtime/runtime.h"
+#include "src/taint_tracking.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-stream.h"
 #include "src/strings/unicode-inl.h"
@@ -927,6 +928,8 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
       return;
     }
   }
+
+  tainttracking::InsertControlFlowHook(info);
 }
 
 template void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,

@@ -4,7 +4,7 @@
 #include "src/taint_tracking.h"
 #include "src/taint_tracking-inl.h"
 #include "src/taint_tracking/log_listener.h"
-#include "src/uri.h"
+#include "src/strings/uri.h"
 
 #include <memory>
 #include <vector>

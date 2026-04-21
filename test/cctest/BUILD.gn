@@ -5,6 +5,17 @@
 import("../../gni/cluster_build.gni")
 import("../../gni/v8.gni")
 
+config("cctest_taint_tracking_config") {
+  if (v8_capnp_include_dir != "") {
+    include_dirs = [
+      "$v8_capnp_include_dir/include",
+      rebase_path("$target_gen_dir/", root_build_dir),
+    ]
+  } else {
+    include_dirs = [ rebase_path("$target_gen_dir/", root_build_dir) ]
+  }
+}
+
 v8_executable("cctest") {
   testonly = true
 
@@ -33,6 +44,10 @@ v8_executable("cctest") {
   ]
 
   ldflags = []
+  libs = [ "capnp", "kj" ]
+  if (v8_capnp_include_dir != "") {
+    lib_dirs = [ "$v8_capnp_include_dir/lib" ]
+  }
 
   if (v8_use_perfetto) {
     deps += [
@@ -76,6 +91,8 @@ config("cctest_sources_config") {
 
 v8_cluster_source_set("cctest_sources") {
   testonly = true
+
+  configs += [ ":cctest_taint_tracking_config" ]
 
   exclude_from_cluster = [
     "compiler/test-code-generator.cc",
@@ -162,6 +179,7 @@ v8_cluster_source_set("cctest_sources") {
     "test-strings.cc",
     "test-swiss-name-dictionary-infra.cc",
     "test-swiss-name-dictionary.cc",
+    "test-taint-tracking.cc",
     "test-trace-event.cc",
     "test-transitions.cc",
     "test-transitions.h",
