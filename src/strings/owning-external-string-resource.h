@@ -14,6 +14,7 @@
 #include "include/v8-primitive.h"
 #include "src/objects/string.h"
 #include "src/objects/tagged.h"
+#include "src/taint_tracking.h"
 
 #ifdef V8_ENABLE_MEMORY_CORRUPTION_API
 #include "src/init/isolate-group.h"
@@ -30,7 +31,9 @@ namespace v8::internal {
 
 template <typename CharT, typename StdCharT, typename FlatStringCharT,
           typename Base>
-class OwningExternalStringResourceImpl : public Base {
+class OwningExternalStringResourceImpl
+    : public Base,
+      public v8::String::TaintTrackingStringBufferImpl {
  public:
   static_assert(sizeof(CharT) == sizeof(StdCharT));
   static_assert(sizeof(CharT) == sizeof(FlatStringCharT));
@@ -48,6 +51,8 @@ class OwningExternalStringResourceImpl : public Base {
     String::WriteToFlat(source,
                         reinterpret_cast<FlatStringCharT*>(storage_.get()), 0,
                         static_cast<uint32_t>(length_));
+    tainttracking::FlattenTaintData(source, InitTaintChars(length_), 0,
+                                    static_cast<int>(length_));
     SealIfSupported();
   }
 

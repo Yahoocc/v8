@@ -33,6 +33,7 @@
 #include "src/objects/template-objects-inl.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/check.h"
+#include "src/taint_tracking.h"
 
 namespace v8 {
 namespace internal {
@@ -867,6 +868,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   string->clear_padding_destructively(length);
   string->set_length(length);
   string->set_raw_hash_field(String::kEmptyHashField);
+  tainttracking::InitTaintData(*string);
   DCHECK_EQ(size, string->Size());
   return handle(string, isolate());
 }

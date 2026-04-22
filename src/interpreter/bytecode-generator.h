@@ -612,6 +612,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   }
 
   void GenerateTaintTrackingHook(AstNode* node);
+  void GenerateTaintTrackingHook(tainttracking::ValueState value_state,
+                                 AstNode* node);
+  void GenerateTaintTrackingHookBody(AstNode* node,
+                                     tainttracking::CheckType type);
+  tainttracking::Status GenerateTaintTrackingHookPrepare(
+      AstNode* node, Handle<Object>* label);
 
   inline HandlerTable::CatchPrediction catch_prediction() const {
     return catch_prediction_;
