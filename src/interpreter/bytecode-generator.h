@@ -611,6 +611,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     return feedback_slot_cache_;
   }
 
+  void GenerateTaintTrackingHook(AstNode* node);
+
   inline HandlerTable::CatchPrediction catch_prediction() const {
     return catch_prediction_;
   }
@@ -684,6 +686,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   int suspend_count_;
   // TODO(solanes): assess if we can move loop_depth_ into LoopScope.
   int loop_depth_;
+  tainttracking::V8NodeLabelSerializer node_serializer_;
 
   // Variables for which hole checks have been emitted in the current basic
   // block. Managed by HoleCheckElisionScope and HoleCheckElisionMergeScope.
