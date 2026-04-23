@@ -885,6 +885,7 @@ config("internal_config_base") {
 
 config("internal_config") {
   defines = []
+  libs = []
 
   # Only targets in this file and its subdirs can depend on this.
   visibility = [ "./*" ]
@@ -907,6 +908,12 @@ config("internal_config") {
       libs = [ "atomic" ]
     }
   }
+
+  # Taint tracking serialization depends on Cap'n Proto.
+  libs += [
+    "capnp",
+    "kj",
+  ]
 }
 
 # Should be applied to all targets that write trace events.
@@ -5774,12 +5781,30 @@ group("v8_tracing") {
   }
 }
 
+action_foreach("taint_tracking_capnp") {
+  script = "tools/gen_capnp.py"
+  sources = [
+    "src/taint_tracking/protos/ast.capnp",
+    "src/taint_tracking/protos/logrecord.capnp",
+  ]
+  outputs = [
+    "$target_gen_dir/v8/{{source_name_part}}.capnp.c++",
+    "$target_gen_dir/v8/{{source_name_part}}.capnp.h",
+  ]
+  args = [
+    rebase_path("src/taint_tracking/protos", root_build_dir),
+    rebase_path("$target_gen_dir/v8", root_build_dir),
+    rebase_path("{{source}}", root_build_dir),
+  ]
+}
+
 v8_cluster_source_set("v8_base_without_compiler") {
   # Only targets in this file and gcmole can depend on this.
   visibility = [
     ":*",
     "tools/gcmole/:*",
   ]
+  deps = [ ":taint_tracking_capnp" ]
 
   # Split static libraries on windows into two.
   split_count = 2
@@ -6269,6 +6294,12 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/tasks/cancelable-task.cc",
     "src/tasks/operations-barrier.cc",
     "src/tasks/task-utils.cc",
+    "src/taint_tracking/ast_serialization.cc",
+    "src/taint_tracking/object_versioner.cc",
+    "src/taint_tracking/symbolic_state.cc",
+    "src/taint_tracking/taint_tracking.cc",
+    "$target_gen_dir/v8/ast.capnp.c++",
+    "$target_gen_dir/v8/logrecord.capnp.c++",
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",

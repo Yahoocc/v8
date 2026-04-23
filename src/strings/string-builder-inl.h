@@ -11,6 +11,7 @@
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/string-inl.h"
+#include "src/taint_tracking.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,8 @@ using StringBuilderSubstringPosition =
 template <typename sinkchar>
 void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
                                Tagged<FixedArray> fixed_array,
-                               uint32_t array_length);
+                               uint32_t array_length,
+                               tainttracking::TaintData* taint_sink);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
