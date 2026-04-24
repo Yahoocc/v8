@@ -205,6 +205,9 @@ class V8_EXPORT Context : public Data {
   /** Returns the security token of this context.*/
   Local<Value> GetSecurityToken();
 
+  /** Used by taint-tracking logging to identify different execution contexts. */
+  void SetTaintTrackingContextId(Local<Value> token);
+
   /**
    * Enter this context.  After entering a context, all code compiled
    * and run is compiled and run in this context.  If another context

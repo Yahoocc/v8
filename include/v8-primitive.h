@@ -5,6 +5,8 @@
 #ifndef INCLUDE_V8_PRIMITIVE_H_
 #define INCLUDE_V8_PRIMITIVE_H_
 
+#include <memory>
+
 #include "v8-data.h"          // NOLINT(build/include_directory)
 #include "v8-internal.h"      // NOLINT(build/include_directory)
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
@@ -123,8 +125,9 @@ enum class NewStringType {
  */
 class V8_EXPORT String : public Name {
  public:
+  // Keep the 32-bit limit in sync with the legacy taint-tracking layout.
   static constexpr int kMaxLength =
-      internal::kApiSystemPointerSize == 4 ? (1 << 28) - 16 : (1 << 29) - 24;
+      internal::kApiSystemPointerSize == 4 ? (1 << 28) - 18 : (1 << 29) - 24;
 
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
@@ -234,13 +237,127 @@ class V8_EXPORT String : public Name {
    */
   bool IsExternalOneByte() const;
 
+  using TaintData = uint8_t;
+
+  // Migrated from the legacy taint-tracking patch. The low 5 bits store the
+  // taint type and the high 3 bits store encoding information.
+  enum TaintType {
+    UNTAINTED = 0,
+    TAINTED = 1,
+    COOKIE = 2,
+    MESSAGE = 3,
+    URL = 4,
+    URL_HASH = 5,
+    URL_PROTOCOL = 6,
+    URL_HOST = 7,
+    URL_HOSTNAME = 8,
+    URL_ORIGIN = 9,
+    URL_PORT = 10,
+    URL_PATHNAME = 11,
+    URL_SEARCH = 12,
+    DOM = 13,
+    REFERRER = 14,
+    WINDOWNAME = 15,
+    STORAGE = 16,
+    NETWORK = 17,
+    MULTIPLE_TAINTS = 18,
+    MESSAGE_ORIGIN = 19,
+    MAX_TAINT_TYPE = 20,
+    URL_ENCODED = 32,
+    URL_COMPONENT_ENCODED = 64,
+    ESCAPE_ENCODED = 96,
+    MULTIPLE_ENCODINGS = 128,
+    URL_DECODED = 160,
+    URL_COMPONENT_DECODED = 192,
+    ESCAPE_DECODED = 224,
+    NO_ENCODING = 0,
+    TAINT_TYPE_MASK = 31,
+    ENCODING_TYPE_MASK = 224
+  };
+
+  enum TaintSinkLabel {
+    URL_SINK,
+    EMBED_SRC_SINK,
+    IFRAME_SRC_SINK,
+    ANCHOR_SRC_SINK,
+    IMG_SRC_SINK,
+    SCRIPT_SRC_URL_SINK,
+    JAVASCRIPT,
+    JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE,
+    JAVASCRIPT_SET_TIMEOUT,
+    JAVASCRIPT_SET_INTERVAL,
+    HTML,
+    MESSAGE_DATA,
+    COOKIE_SINK,
+    STORAGE_SINK,
+    ORIGIN,
+    DOM_URL,
+    JAVASCRIPT_URL,
+    ELEMENT,
+    CSS,
+    CSS_STYLE_ATTRIBUTE,
+    LOCATION_ASSIGNMENT
+  };
+
+  void WriteTaint(TaintData* buffer, int start = 0, int length = -1) const;
+  int64_t GetTaintInfo() const;
+
+  template <typename Char>
+  static int64_t LogIfBufferTainted(TaintData* buffer, Char* stringdata,
+                                    size_t length, int symbolic_data,
+                                    v8::Isolate* isolate,
+                                    TaintSinkLabel label);
+
+  // Returns -1 if not tainted. Otherwise returns the message id of the logged
+  // message.
+  int64_t LogIfTainted(TaintSinkLabel label, int symbolic_data);
+
+  static void SetTaint(v8::Local<v8::Value> val, v8::Isolate* isolate,
+                       TaintType type);
+  static void SetTaintInfo(v8::Local<v8::Value> val, int64_t info);
+  static int64_t NewUniqueId(v8::Isolate* isolate);
+
+  class V8_EXPORT TaintTrackingBase {
+   public:
+    virtual ~TaintTrackingBase() = default;
+
+    // Default implementations preserve compatibility with existing resource
+    // subclasses in current V8 embedders.
+    virtual TaintData* GetTaintChars() const { return nullptr; }
+    virtual TaintData* InitTaintChars(size_t) { return nullptr; }
+  };
+
+  class V8_EXPORT TaintTrackingStringBufferImpl
+      : public virtual TaintTrackingBase {
+   public:
+    TaintTrackingStringBufferImpl() = default;
+    ~TaintTrackingStringBufferImpl() override = default;
+
+    TaintData* GetTaintChars() const override { return taint_data_.get(); }
+
+    TaintData* InitTaintChars(size_t length) override {
+      TaintData* answer = taint_data_.get();
+      if (!answer) {
+        answer = new TaintData[length];
+        taint_data_.reset(answer);
+      }
+      return answer;
+    }
+
+    void SetTaintChars(TaintData* buffer) { taint_data_.reset(buffer); }
+
+   private:
+    std::unique_ptr<TaintData[]> taint_data_;
+  };
+
   /**
    * Returns the internalized string. See `NewStringType::kInternalized` for
    * details on internalized strings.
    */
   Local<String> InternalizeString(Isolate* isolate);
 
-  class V8_EXPORT ExternalStringResourceBase {
+  class V8_EXPORT ExternalStringResourceBase
+      : public virtual TaintTrackingBase {
    public:
     virtual ~ExternalStringResourceBase() = default;
 
@@ -706,6 +823,11 @@ class V8_EXPORT String : public Name {
                                               NewStringType type, int length);
 
   static void CheckCast(v8::Data* that);
+};
+
+class V8_EXPORT TaintTracking {
+ public:
+  static void LogInitializeNavigate(v8::Local<v8::String> url);
 };
 
 // Zero-length string specialization (templated string size includes
