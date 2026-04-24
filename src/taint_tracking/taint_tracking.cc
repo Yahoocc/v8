@@ -1664,7 +1664,7 @@ Handle<Object> JSCheckTaintMaybeLog(Handle<String> str, Handle<Object> sink,
                    : isolate->factory()->NewNumberFromInt64(ret);
 }
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::JSArrayBuffer>
+v8::internal::Handle<v8::internal::JSArrayBuffer>
 JSGetTaintStatus(v8::internal::Handle<v8::internal::String> str,
                  v8::internal::Isolate* isolate) {
   Handle<JSArrayBuffer> answer = isolate->factory()->NewJSArrayBuffer();
@@ -1834,7 +1834,7 @@ InstanceCounter TaintTracker::Impl::NewInstance() {
   return symbolic_elem_counter_++;
 }
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::HeapObject> JSTaintConstants(
+v8::internal::Handle<v8::internal::HeapObject> JSTaintConstants(
     v8::internal::Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<JSObject> ret = factory->NewJSObjectWithNullProto();

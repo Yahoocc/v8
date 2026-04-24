@@ -126,6 +126,70 @@ class V8_EXPORT String : public Name {
   static constexpr int kMaxLength =
       internal::kApiSystemPointerSize == 4 ? (1 << 28) - 16 : (1 << 29) - 24;
 
+  typedef uint8_t TaintData;
+
+  // Taint data stores 5 bits of source taint and 3 bits of encoding metadata.
+  enum TaintType {
+    UNTAINTED = 0,
+    TAINTED = 1,
+    COOKIE = 2,
+    MESSAGE = 3,
+    URL = 4,
+    URL_HASH = 5,
+    URL_PROTOCOL = 6,
+    URL_HOST = 7,
+    URL_HOSTNAME = 8,
+    URL_ORIGIN = 9,
+    URL_PORT = 10,
+    URL_PATHNAME = 11,
+    URL_SEARCH = 12,
+    DOM = 13,
+    REFERRER = 14,
+    WINDOWNAME = 15,
+    STORAGE = 16,
+    NETWORK = 17,
+    MULTIPLE_TAINTS = 18,
+    MESSAGE_ORIGIN = 19,
+    MAX_TAINT_TYPE = 19,
+
+    URL_ENCODED = 32,
+    URL_COMPONENT_ENCODED = 64,
+    ESCAPE_ENCODED = 96,
+    MULTIPLE_ENCODINGS = 128,
+    URL_DECODED = 160,
+    URL_COMPONENT_DECODED = 192,
+    ESCAPE_DECODED = 224,
+
+    NO_ENCODING = 0,
+    TAINT_TYPE_MASK = 31,
+    ENCODING_TYPE_MASK = 224
+  };
+
+  enum TaintSinkLabel {
+    URL_SINK,
+    EMBED_SRC_SINK,
+    IFRAME_SRC_SINK,
+    ANCHOR_SRC_SINK,
+    IMG_SRC_SINK,
+    SCRIPT_SRC_URL_SINK,
+    JAVASCRIPT,
+    JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE,
+    JAVASCRIPT_SET_TIMEOUT,
+    JAVASCRIPT_SET_INTERVAL,
+    HTML,
+    MESSAGE_DATA,
+    COOKIE_SINK,
+    STORAGE_SINK,
+    ORIGIN,
+    DOM_URL,
+    JAVASCRIPT_URL,
+    ELEMENT,
+    CSS,
+    CSS_STYLE_ATTRIBUTE,
+    LOCATION_ASSIGNMENT,
+    PROTOTYPE_POLLUTION
+  };
+
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,

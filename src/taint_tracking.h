@@ -7,7 +7,7 @@
 
 #include "include/v8.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/parsing/token.h"
 
 #include <fstream>
@@ -21,8 +21,8 @@ namespace internal {
 class FunctionLiteral;
 class Parser;
 class ParseInfo;
-};
-};
+}  // namespace internal
+}  // namespace v8
 
 namespace tainttracking {
 
@@ -164,6 +164,17 @@ enum BranchType {
   CONDITIONAL
 };
 
+// Taint runtime metadata for implicit and explicit call sites that need
+// symbolic stack-frame tracking.
+enum FrameType {
+  RUNTIME_CALL,
+  TO_STRING_CONVERT_PLUS_LEFT,
+  TO_STRING_CONVERT_PLUS_RIGHT,
+  UNKNOWN_CAPI,
+  UNKNOWN_CAPI_NEW,
+  UNKNOWN_EXTERNAL
+};
+
 typedef uint32_t TaintFlag;
 const TaintFlag kTaintFlagUntainted = 0;
 
@@ -185,7 +196,7 @@ struct TaintInstanceInfo {
 
 class TaintListener {
 public:
-  virtual ~TaintListener() {};
+  virtual ~TaintListener() {}
   virtual void OnTaintedCompilation(const TaintInstanceInfo& info,
                                     v8::internal::Isolate* isolate) = 0;
 };
@@ -317,7 +328,7 @@ void JSSetTaintBuffer(
     v8::internal::Handle<v8::internal::String> str,
     v8::internal::Handle<v8::internal::JSArrayBuffer> data);
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::JSArrayBuffer>
+v8::internal::Handle<v8::internal::JSArrayBuffer>
 JSGetTaintStatus(v8::internal::Handle<v8::internal::String> str,
                  v8::internal::Isolate* isolate);
 void JSTaintLog(v8::internal::Handle<v8::internal::String> str,
@@ -328,7 +339,7 @@ v8::internal::Handle<v8::internal::Object> JSCheckTaintMaybeLog(
     v8::internal::Handle<v8::internal::Object> tag,
     int symbolic_data);
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::HeapObject>
+v8::internal::Handle<v8::internal::HeapObject>
 JSTaintConstants(v8::internal::Isolate* isolate);
 
 

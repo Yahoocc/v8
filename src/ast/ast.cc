@@ -47,7 +47,7 @@ tainttracking::NodeLabel AstNode::GetTaintTrackingLabel() {
   return taint_tracking_label_;
 }
 void AstNode::SetTaintTrackingLabel(tainttracking::NodeLabel label) {
-  taint_tracking_label_ = label;
+  taint_tracking_label_.CopyFrom(label);
 }
 
 

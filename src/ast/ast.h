@@ -177,6 +177,7 @@ class AstNode: public ZoneObject {
   MaterializedLiteral* AsMaterializedLiteral();
 
  private:
+  tainttracking::NodeLabel taint_tracking_label_;
   int position_;
   using NodeTypeField = base::BitField<NodeType, 0, 6>;
 
