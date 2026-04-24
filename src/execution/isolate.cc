@@ -1760,6 +1760,12 @@ class CurrentScriptIdsAndContextsStackVisitor {
   size_t cur_frame_ = 0;
 };
 
+tainttracking::TaintTracker* Isolate::taint_tracking_data() { return nullptr; }
+
+const tainttracking::TaintTracker* Isolate::taint_tracking_data() const {
+  return nullptr;
+}
+
 class CurrentScriptDataStackVisitor {
  public:
   CurrentScriptDataStackVisitor(

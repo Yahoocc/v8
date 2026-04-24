@@ -136,6 +136,13 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Builtin call, int len, AdaptArguments adapt,
     PropertyAttributes attrs = DONT_ENUM);
 
+// Compatibility overload for forward-porting patches that still target the
+// older SimpleInstallFunction signature without an explicit AdaptArguments
+// parameter.
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
+    Isolate* isolate, DirectHandle<JSObject> base, const char* name,
+    Builtin call, int len, PropertyAttributes attrs = DONT_ENUM);
+
 // Exposed for Wasm bootstrapping.
 V8_NOINLINE void InstallError(
     Isolate* isolate, DirectHandle<JSObject> global, DirectHandle<String> name,

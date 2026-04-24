@@ -2168,7 +2168,8 @@ template <template <typename> typename HandleType>
   requires(
       std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
 typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
-    Isolate* isolate, HandleType<JSReceiver> receiver, ToPrimitiveHint hint) {
+    Isolate* isolate, HandleType<JSReceiver> receiver, ToPrimitiveHint hint,
+    tainttracking::FrameType frame_type) {
   DirectHandle<Object> exotic_to_prim;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, exotic_to_prim,
@@ -2180,7 +2181,8 @@ typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
     HandleType<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, result,
-        Execution::Call(isolate, exotic_to_prim, receiver, {&hint_string, 1}));
+        Execution::Call(isolate, exotic_to_prim, receiver, {&hint_string, 1},
+                        frame_type));
     if (IsPrimitive(*result)) return result;
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
@@ -2192,10 +2194,11 @@ typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
 }
 
 template MaybeDirectHandle<Object> JSReceiver::ToPrimitive(
-    Isolate* isolate, DirectHandle<JSReceiver> receiver, ToPrimitiveHint hint);
+    Isolate* isolate, DirectHandle<JSReceiver> receiver, ToPrimitiveHint hint,
+    tainttracking::FrameType frame_type);
 template MaybeIndirectHandle<Object> JSReceiver::ToPrimitive(
     Isolate* isolate, IndirectHandle<JSReceiver> receiver,
-    ToPrimitiveHint hint);
+    ToPrimitiveHint hint, tainttracking::FrameType frame_type);
 
 // static
 template <template <typename> typename HandleType>

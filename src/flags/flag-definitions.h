@@ -4234,6 +4234,19 @@ DEFINE_IMPLICATION(perf_basic_prof, log)
 DEFINE_IMPLICATION(ll_prof, log)
 DEFINE_IMPLICATION(gdbjit, log)
 
+// Legacy NDSS taint-tracking port flags. Keep them default-off until the
+// runtime pieces are forward-ported back into the modern tree.
+DEFINE_STRING(taint_log_file, nullptr,
+              "Output taint log information to this file.")
+DEFINE_STRING(taint_tracking_job_id, "NO_JOB_ID",
+              "Opaque job identifier used by legacy taint logs.")
+DEFINE_BOOL(taint_tracking_enable_header_logging, false,
+            "Enable logging of HTTP headers.")
+DEFINE_BOOL(taint_tracking_enable_page_logging, false,
+            "Enable logging of page bodies.")
+DEFINE_BOOL(taint_tracking_enable_symbolic, false,
+            "Enable symbolic logging.")
+
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY

@@ -83,6 +83,11 @@ namespace internal {
 
 namespace {
 
+void NotifyTaintTrackingBeforeCompile(Handle<Script> script, Isolate* isolate) {
+  USE(script);
+  USE(isolate);
+}
+
 constexpr bool IsOSR(BytecodeOffset osr_offset) { return !osr_offset.IsNone(); }
 
 class CompilerTracer : public AllStatic {
@@ -1575,6 +1580,7 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(
                          ? RuntimeCallCounterId::kCompileEval
                          : RuntimeCallCounterId::kCompileScript);
   VMState<BYTECODE_COMPILER> state(isolate);
+  NotifyTaintTrackingBeforeCompile(script, isolate);
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, script, maybe_outer_scope_info,
                              isolate, parsing::ReportStatisticsMode::kYes)) {

@@ -177,6 +177,15 @@ void SourcePositionTableBuilder::AddPosition(size_t code_offset,
   AddEntry({offset, source_position.raw(), is_statement, is_breakable});
 }
 
+void SourcePositionTableBuilder::AddPosition(size_t code_offset,
+                                             SourcePosition source_position,
+                                             bool is_statement,
+                                             int ast_taint_tracking_index,
+                                             bool is_breakable) {
+  USE(ast_taint_tracking_index);
+  AddPosition(code_offset, source_position, is_statement, is_breakable);
+}
+
 V8_INLINE void SourcePositionTableBuilder::AddEntry(
     const PositionTableEntry& entry) {
   PositionTableEntry tmp(entry);

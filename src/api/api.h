@@ -50,6 +50,18 @@ class Script;
 class EphemeronTable;
 }  // namespace debug
 
+namespace tainttracking {
+
+// Compatibility hook for the forward-ported NDSS taint/symbolic runtime.
+// The runtime pieces are not all back yet, so keep API callback validation
+// as a default no-op until the real checker is restored.
+template <typename CallbackInfo>
+inline bool SymbolicMatchesFunctionArgs(const CallbackInfo&) {
+  return true;
+}
+
+}  // namespace tainttracking
+
 template <typename T, internal::ExternalPointerTag tag>
 inline T ToCData(i::Isolate* isolate, i::Tagged<i::Object> obj);
 template <internal::ExternalPointerTag tag>

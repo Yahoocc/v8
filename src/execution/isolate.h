@@ -85,6 +85,10 @@ namespace v8_inspector {
 class V8Inspector;
 }  // namespace v8_inspector
 
+namespace tainttracking {
+class TaintTracker;
+}
+
 namespace v8 {
 
 class EmbedderState;
@@ -1172,6 +1176,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
+  tainttracking::TaintTracker* taint_tracking_data();
+  const tainttracking::TaintTracker* taint_tracking_data() const;
   // Use for updating counters on a foreground thread.
   Counters* counters() { return async_counters().get(); }
   // Use for updating counters on a background thread.

@@ -111,6 +111,7 @@ class ExternalReferenceTable {
   void AddIsolateDependentReferences(Isolate* isolate, int* index);
   void AddIsolateFields(Isolate* isolate, int* index);
   void AddStubCache(Isolate* isolate, int* index);
+  void AddTaintTracking(Isolate* isolate, int* index);
 
   Address GetStatsCounterAddress(StatsCounter* counter);
   void AddNativeCodeStatsCounters(Isolate* isolate, int* index);

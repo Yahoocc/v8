@@ -31,6 +31,81 @@
 #undef jmpbuf
 #endif
 
+namespace tainttracking {
+
+struct InstanceCounter;
+
+// Legacy NDSS taint-tracking frame tags. These are kept in a neutral shared
+// header because the original patch threaded them through execution, builtins,
+// and runtime call sites.
+enum class FrameType {
+  kJs,
+  kJsCallNew,
+  kJsCallRuntime,
+  kTopLevel,
+  kSetterAccessor,
+  kGetterAccessor,
+  kBuiltinCallOrApply,
+  kBuiltinReflectApply,
+  kBuiltinReflectConstruct,
+  kBuiltinApply,
+  kBuiltinCall,
+  kBuiltinConstruct,
+  kBuiltinCallFunction,
+  kBuiltinCallBoundFunction,
+  kBuiltinConstructFunction,
+  kBuiltinFunctionPrototypeCall,
+  kBuiltinFunctionPrototypeApply,
+  kBuiltinJsTrampoline,
+  kBuiltinInvokeFunctionCode,
+  kUnknownCApi,
+  kUnknownCApiNew,
+  kUnknownExternal,
+};
+
+constexpr FrameType kFirstFrameTypeNeedingLiteral = FrameType::kUnknownCApi;
+constexpr FrameType kFirstFrameTypeNeedingAutoExit =
+    FrameType::kBuiltinReflectApply;
+constexpr FrameType kLastFrameTypeNeedingAutoExit =
+    FrameType::kBuiltinInvokeFunctionCode;
+
+// Legacy NDSS taint-tracking string metadata placeholders. Upstream V8 no
+// longer carries the old per-character taint runtime, but keeping these
+// neutral no-op shims in a shared moved-file header lets forward-ported hunks
+// land on modern paths without dragging the full runtime back in all at once.
+enum class TaintType : uint8_t {
+  UNTAINTED = 0,
+  TAINTED = 1,
+};
+
+using TaintData = uint8_t;
+
+inline constexpr bool kInternalizedStringsEnabled = true;
+
+template <typename... Args>
+inline void FlattenTaint(const Args&...) {}
+
+template <typename... Args>
+inline void FlattenTaintData(const Args&...) {}
+
+template <typename... Args>
+inline void SetTaintStatus(const Args&...) {}
+
+template <typename... Args>
+inline TaintType GetTaintStatus(const Args&...) {
+  return TaintType::UNTAINTED;
+}
+
+template <typename... Args>
+inline TaintData* GetWriteableStringTaintData(const Args&...) {
+  return nullptr;
+}
+
+template <typename... Args>
+inline void CheckTaintDebug(const Args&...) {}
+
+}  // namespace tainttracking
+
 namespace v8 {
 
 namespace base {

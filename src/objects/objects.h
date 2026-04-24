@@ -253,7 +253,9 @@ class Object : public AllStatic {
     requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
   V8_WARN_UNUSED_RESULT static inline typename HandleType<Object>::MaybeType
   ToPrimitive(Isolate* isolate, HandleType<T> input,
-              ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+              ToPrimitiveHint hint = ToPrimitiveHint::kDefault,
+              tainttracking::FrameType frame_type =
+                  tainttracking::FrameType::kUnknownCApi);
 
   // ES6 section 7.1.3 ToNumber
   template <typename T, template <typename> typename HandleType>

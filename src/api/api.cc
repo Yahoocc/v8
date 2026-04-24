@@ -12370,6 +12370,7 @@ inline void InvokeFunctionCallback(
                                        ? v8::ExceptionContext::kConstructor
                                        : v8::ExceptionContext::kOperation,
                                    &info);
+  DCHECK(v8::tainttracking::SymbolicMatchesFunctionArgs(info));
   callback(info);
 }
 }  // namespace

@@ -31,6 +31,7 @@ class Zone;
 struct VariableLookupResult {
   int context_index;
   int slot_index;
+  int taint_symbolic_index = -1;
   // repl_mode flag is needed to disable inlining of 'const' variables in REPL
   // mode.
   bool is_repl_mode;
@@ -74,6 +75,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Parameters allocated in the context count as context allocated locals. If
   // no contexts are allocated for this scope ContextLength returns 0.
   int ContextLength() const;
+  int ContextLengthWithoutTaint() const;
   int ContextHeaderLength() const;
 
   // Returns true if the respective contexts have a context extension slot.
@@ -201,6 +203,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   int ContextSlotIndex(Tagged<String> name);
   int ContextSlotIndex(Tagged<String> name,
                        VariableLookupResult* lookup_result);
+  int SymbolicSlotFor(int context_slot) const;
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable

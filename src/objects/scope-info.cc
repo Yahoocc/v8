@@ -1078,6 +1078,7 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name,
     lookup_result->maybe_assigned_flag = ContextLocalMaybeAssignedFlag(index);
     lookup_result->is_repl_mode = IsReplModeScope();
     int context_slot = ContextHeaderLength() + index;
+    lookup_result->taint_symbolic_index = SymbolicSlotFor(context_slot);
     DCHECK_LT(context_slot, ContextLength());
     return context_slot;
   }
@@ -1089,6 +1090,10 @@ int ScopeInfo::ContextSlotIndex(Tagged<String> name) {
   VariableLookupResult lookup_result;
   return ContextSlotIndex(name, &lookup_result);
 }
+
+int ScopeInfo::ContextLengthWithoutTaint() const { return ContextLength(); }
+
+int ScopeInfo::SymbolicSlotFor(int context_slot) const { return context_slot; }
 
 std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
   DCHECK(HasSavedClassVariableBit::decode(Flags()));

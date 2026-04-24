@@ -86,7 +86,9 @@ class IncrementalStringBuilder {
   V8_INLINE String::Encoding CurrentEncoding() { return encoding_; }
 
   template <typename SrcChar, typename DestChar>
-  V8_INLINE void Append(SrcChar c);
+  V8_INLINE void Append(
+      SrcChar c, tainttracking::TaintType type =
+                     tainttracking::TaintType::UNTAINTED);
 
   V8_INLINE void AppendCharacter(uint8_t c);
 
@@ -94,7 +96,9 @@ class IncrementalStringBuilder {
   V8_INLINE void AppendCStringLiteral(const char (&literal)[N]);
 
   template <typename SrcChar>
-  V8_INLINE void AppendCString(const SrcChar* s);
+  V8_INLINE void AppendCString(
+      const SrcChar* s, tainttracking::TaintType type =
+                            tainttracking::TaintType::UNTAINTED);
   V8_INLINE void AppendString(std::string_view str);
 
   V8_INLINE void AppendInt(int i);

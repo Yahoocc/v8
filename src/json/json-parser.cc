@@ -1827,7 +1827,12 @@ Handle<String> JsonParser<Char>::DecodeString(
 template <typename Char>
 Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
                                             Handle<String> hint) {
-  if (string.length() == 0) return factory()->empty_string();
+  auto finish_string = [](Handle<String> result) {
+    tainttracking::CheckTaintDebug(result);
+    return result;
+  };
+
+  if (string.length() == 0) return finish_string(factory()->empty_string());
   if (string.length() == 1) {
     uint16_t first_char;
     if (!string.has_escape()) {
@@ -1835,33 +1840,36 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
     } else {
       DecodeString(&first_char, string.start(), 1);
     }
-    return factory()->LookupSingleCharacterStringFromCode(first_char);
+    return finish_string(
+        factory()->LookupSingleCharacterStringFromCode(first_char));
   }
 
-  if (string.internalize() && !string.has_escape()) {
+  if (string.internalize() && !string.has_escape() &&
+      tainttracking::kInternalizedStringsEnabled) {
     if (!hint.is_null()) {
       base::Vector<const Char> data(chars_ + string.start(), string.length());
-      if (Matches(data, hint)) return hint;
+      if (Matches(data, hint)) return finish_string(hint);
     }
     if (chars_may_relocate_) {
-      return factory()->InternalizeSubString(Cast<SeqString>(source_),
-                                             string.start(), string.length(),
-                                             string.needs_conversion());
+      return finish_string(factory()->InternalizeSubString(
+          Cast<SeqString>(source_), string.start(), string.length(),
+          string.needs_conversion()));
     }
     base::Vector<const Char> chars(chars_ + string.start(), string.length());
-    return factory()->InternalizeString(chars, string.needs_conversion());
+    return finish_string(
+        factory()->InternalizeString(chars, string.needs_conversion()));
   }
 
   if (sizeof(Char) == 1 ? V8_LIKELY(!string.needs_conversion())
                         : string.needs_conversion()) {
     Handle<SeqOneByteString> intermediate =
         factory()->NewRawOneByteString(string.length()).ToHandleChecked();
-    return DecodeString(string, intermediate, hint);
+    return finish_string(DecodeString(string, intermediate, hint));
   }
 
   Handle<SeqTwoByteString> intermediate =
       factory()->NewRawTwoByteString(string.length()).ToHandleChecked();
-  return DecodeString(string, intermediate, hint);
+  return finish_string(DecodeString(string, intermediate, hint));
 }
 
 template <typename Char>

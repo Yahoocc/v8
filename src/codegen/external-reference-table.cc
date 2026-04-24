@@ -113,6 +113,7 @@ void ExternalReferenceTable::Init(Isolate* isolate) {
   AddIsolateFields(isolate, &index);
   AddStubCache(isolate, &index);
   AddNativeCodeStatsCounters(isolate, &index);
+  AddTaintTracking(isolate, &index);
   CHECK_EQ(kSize, index);
 
   is_initialized_ = kInitialized;
@@ -354,6 +355,11 @@ void ExternalReferenceTable::AddNativeCodeStatsCounters(Isolate* isolate,
                kStatsCountersReferenceCount,
            *index);
   CHECK_EQ(kSize, *index);
+}
+
+void ExternalReferenceTable::AddTaintTracking(Isolate* isolate, int* index) {
+  USE(isolate);
+  USE(index);
 }
 
 }  // namespace internal

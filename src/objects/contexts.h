@@ -687,6 +687,13 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name = nullptr);
+  static Handle<Object> Lookup(Handle<Context> context, Handle<String> name,
+                               ContextLookupFlags flags, int* index,
+                               PropertyAttributes* attributes,
+                               InitializationFlag* init_flag,
+                               VariableMode* variable_mode,
+                               int* symbolic_index,
+                               bool* is_sloppy_function_name = nullptr);
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
                                      FunctionKind kind, bool has_shared_name);
