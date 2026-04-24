@@ -100,7 +100,8 @@ namespace test_strings {
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
 
-class Resource : public v8::String::ExternalStringResource {
+class Resource: public v8::String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   Resource(const base::uc16* data, size_t length)
       : data_(data), length_(length) {}
@@ -113,7 +114,9 @@ class Resource : public v8::String::ExternalStringResource {
   size_t length_;
 };
 
-class OneByteResource : public v8::String::ExternalOneByteStringResource {
+
+class OneByteResource : public v8::String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   OneByteResource(const char* data, size_t length)
       : data_(data), length_(length) {}
@@ -1320,7 +1323,10 @@ TEST(SliceFromCons) {
   CHECK(slice->IsFlat());
 }
 
-class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
+
+class OneByteVectorResource :
+ public v8::String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
@@ -1682,13 +1688,17 @@ TEST(Latin1IgnoreCase) {
 }
 #endif
 
-class DummyResource : public v8::String::ExternalStringResource {
+
+class DummyResource: public v8::String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   const uint16_t* data() const override { return nullptr; }
   size_t length() const override { return 1 << 30; }
 };
 
-class DummyOneByteResource : public v8::String::ExternalOneByteStringResource {
+class DummyOneByteResource:
+ public v8::String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   const char* data() const override { return nullptr; }
   size_t length() const override { return 1 << 30; }

@@ -316,6 +316,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(StackGuardWithGap, 1, 1)                               \
   F(TerminateExecution, 0, 1)                              \
   F(Typeof, 1, 1, RuntimeCallProperty::kCannotTriggerGC)   \
+  F(TaintTrackingHook, 3, 1)                               \
   F(UnwindAndFindExceptionHandler, 0, 1)                   \
   I(AddLhsIsStringConstantInternalize, 4, 1)               \
   I(AddRhsIsStringConstantInternalize, 4, 1)

@@ -763,7 +763,8 @@ void TranslateSourcePositionTable(Isolate* isolate,
     position.SetScriptOffset(
         LiveEdit::TranslatePosition(diffs, position.ScriptOffset()));
     builder.AddPosition(iterator.code_offset(), position,
-                        iterator.is_statement());
+                      iterator.is_statement(),
+                      iterator.ast_taint_tracking_index());
   }
 
   DirectHandle<TrustedByteArray> new_source_position_table(

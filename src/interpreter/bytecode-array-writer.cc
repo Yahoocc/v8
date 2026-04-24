@@ -246,8 +246,10 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
   const BytecodeSourceInfo& source_info = node->source_info();
   if (source_info.is_valid()) {
     source_position_table_builder()->AddPosition(
-        bytecode_offset, SourcePosition(source_info.source_position()),
-        source_info.is_statement(), source_info.is_breakable());
+        bytecode_offset, 
+        source_info.source_position(),
+        source_info.is_statement(),
+        SourcePositionTableBuilder::NO_TAINT_TRACKING_INDEX);
   }
 }
 

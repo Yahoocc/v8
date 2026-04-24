@@ -11,6 +11,7 @@
 #include "src/objects/smi.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/strings/string-builder-inl.h"
+#include "src/taint_tracking.h"
 #include "src/strings/unicode-inl.h"
 
 namespace v8 {
@@ -378,7 +379,10 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
-                              static_cast<uint32_t>(array_length));
+                              static_cast<uint32_t>(array_length),
+                              tainttracking::GetWriteableStringTaintData(
+                                  *answer));
+    tainttracking::OnJoinManyStrings(*answer, *array);
     return *answer;
   } else {
     DirectHandle<SeqTwoByteString> answer;
@@ -386,7 +390,10 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
-                              static_cast<uint32_t>(array_length));
+                              static_cast<uint32_t>(array_length),
+                              tainttracking::GetWriteableStringTaintData(
+                                  *answer));
+    tainttracking::OnJoinManyStrings(*answer, *array);
     return *answer;
   }
 }
@@ -623,6 +630,31 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
     base::uc16* dst = Cast<SeqTwoByteString>(result)->GetChars(no_gc);
     CopyEscapedRaw<replacement>(dst, string_vec.data(), string_vec.length(),
                                 indices, no_gc);
+  }
+
+  tainttracking::TaintData* dst_taint =
+      tainttracking::GetWriteableStringTaintData(*Cast<SeqString>(result));
+  int dst_index = 0;
+  int prev_index = -1;
+  for (int index : indices) {
+    const int slice_start = prev_index + 1;
+    const int slice_end = index;
+    if (slice_end > slice_start) {
+      const int slice_length = slice_end - slice_start;
+      tainttracking::FlattenTaintData(*string, dst_taint + dst_index,
+                                      slice_start, slice_length);
+      dst_index += slice_length;
+    }
+    tainttracking::CopyIn(*Cast<SeqString>(result),
+                          tainttracking::GetTaintStatus(*string, index),
+                          dst_index, replacement_length);
+    dst_index += replacement_length;
+    prev_index = index;
+  }
+  if (prev_index < string_length - 1) {
+    const int remaining_length = string_length - prev_index - 1;
+    tainttracking::FlattenTaintData(*string, dst_taint + dst_index,
+                                    prev_index + 1, remaining_length);
   }
 
   return *result;

@@ -16,6 +16,7 @@
 #include "src/regexp/regexp-utils.h"
 #include "src/strings/string-builder-inl.h"
 #include "src/strings/string-case.h"
+#include "src/taint_tracking.h"
 #include "src/strings/unicode-inl.h"
 #include "src/strings/unicode.h"
 
@@ -318,6 +319,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
     current = next;
   }
   if (has_changed_character) {
+    tainttracking::OnConvertCase(string, result);
     return result;
   } else {
     // If we didn't actually change anything in doing the conversion
@@ -369,7 +371,10 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
             length - prefix) +
         prefix;
     // If not ASCII, we discard the result and take the 2 byte path.
-    if (index_to_first_unprocessed == length) return *result;
+    if (index_to_first_unprocessed == length) {
+      tainttracking::OnConvertCase(*s, *result);
+      return *result;
+    }
   }
 
   DirectHandle<SeqString> result;  // Same length as input.

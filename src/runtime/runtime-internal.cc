@@ -21,6 +21,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/template-objects-inl.h"
 #include "src/runtime/runtime-utils.h"
+#include "src/taint_tracking.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -703,6 +704,17 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
   DCHECK_EQ(1, args.length());
   DirectHandle<Object> object = args.at(0);
   return *Object::TypeOf(isolate, object);
+}
+
+RUNTIME_FUNCTION(Runtime_TaintTrackingHook) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  DirectHandle<Object> target = args.at(0);
+  DirectHandle<Object> label = args.at(1);
+  DirectHandle<Smi> checktype = args.at<Smi>(2);
+
+  tainttracking::RuntimeHook(isolate, target, label, checktype->value());
+  return *target;
 }
 
 RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {

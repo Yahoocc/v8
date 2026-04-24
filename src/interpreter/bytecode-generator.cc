@@ -1468,6 +1468,7 @@ BytecodeGenerator::BytecodeGenerator(
       generator_jump_table_(nullptr),
       suspend_count_(0),
       loop_depth_(0),
+      node_serializer_(local_isolate->AsIsolate()),
       hole_check_bitmap_(0),
       current_loop_scope_(nullptr),
       current_for_in_scope_(nullptr),
@@ -3497,6 +3498,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   builder()->CreateClosure(entry, GetNewClosureSlot(expr), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
   AddToEagerLiteralsIfEager(expr);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
@@ -3858,6 +3860,7 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr, Register name) {
   } else {
     BuildClassLiteral(expr, name);
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::BuildClassProperty(ClassLiteral::Property* property) {
@@ -4054,6 +4057,7 @@ void BytecodeGenerator::VisitNativeFunctionLiteral(
   uint8_t flags = CreateClosureFlags::Encode(false, false);
   builder()->CreateClosure(entry, index, flags);
   native_function_literals_.push_back(std::make_pair(expr, entry));
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
@@ -4099,6 +4103,7 @@ void BytecodeGenerator::VisitConditionalChain(ConditionalChain* expr) {
     }
   }
   merge_elider.Merge();
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitConditional(Conditional* expr) {
@@ -4133,10 +4138,14 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 
     merge_elider.Merge();
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
-  if (execution_result()->IsEffect()) return;
+  if (execution_result()->IsEffect()) {
+    GenerateTaintTrackingHook(tainttracking::ValueState::OPTIMIZED_OUT, expr);
+    return;
+  }
   switch (expr->type()) {
     case Literal::kSmi:
       builder()->LoadLiteral(expr->AsSmiLiteral());
@@ -4168,6 +4177,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadLiteral(expr->AsBigInt());
       break;
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
@@ -4175,6 +4185,7 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   builder()->CreateRegExpLiteral(
       expr->raw_pattern(), feedback_index(feedback_spec()->AddLiteralSlot()),
       expr->flags());
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::BuildCreateObjectLiteral(Register literal,
@@ -4196,6 +4207,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   if (expr->builder()->IsEmptyObjectLiteral()) {
     DCHECK(expr->builder()->IsFastCloningSupported());
     builder()->CreateEmptyObjectLiteral();
+    GenerateTaintTrackingHook(expr);
     return;
   }
 
@@ -4458,6 +4470,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // accumulator, to prevent the context scope from clobbering it.
   object_literal_context_scope.SetEnteredIf(false);
   builder()->LoadAccumulatorWithRegister(literal);
+  GenerateTaintTrackingHook(expr);
 }
 
 // Fill an array with values from an iterator, starting at a given index. It is
@@ -4669,11 +4682,13 @@ void BytecodeGenerator::BuildCreateArrayLiteral(
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   expr->builder()->InitDepthAndFlags();
   BuildCreateArrayLiteral(expr->values(), expr);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   builder()->SetExpressionPosition(proxy);
   BuildVariableLoad(proxy->var(), proxy->hole_check_mode());
+  GenerateTaintTrackingHook(proxy);
 }
 
 bool BytecodeGenerator::IsVariableInRegister(Variable* var, Register reg) {
@@ -5896,6 +5911,7 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
 
   builder()->SetExpressionPosition(expr);
   BuildAssignment(lhs_data, expr->op(), expr->lookup_hoisting_mode());
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
@@ -6130,6 +6146,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
                                                 SourceRangeKind::kContinuation);
     builder()->LoadAccumulatorWithRegister(input);
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 // Desugaring of (yield* iterable)
@@ -6370,6 +6387,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   BuildIncrementBlockCoverageCounterIfEnabled(expr,
                                               SourceRangeKind::kContinuation);
   builder()->LoadAccumulatorWithRegister(output_value);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::BuildAwait(int position) {
@@ -6430,6 +6448,7 @@ void BytecodeGenerator::VisitAwait(Await* expr) {
   BuildAwait(expr->position());
   BuildIncrementBlockCoverageCounterIfEnabled(expr,
                                               SourceRangeKind::kContinuation);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitThrow(Throw* expr) {
@@ -6455,6 +6474,8 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case NON_PROPERTY:
       UNREACHABLE();
     case NAMED_PROPERTY: {
+      GenerateTaintTrackingHook(tainttracking::ValueState::STATIC_VALUE,
+                                property->key());
       builder()->SetExpressionPosition(property);
       const AstRawString* name =
           property->key()->AsLiteral()->AsRawPropertyName();
@@ -6516,6 +6537,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
       break;
     }
   }
+  GenerateTaintTrackingHook(property);
 }
 
 void BytecodeGenerator::BuildPrivateDebugDynamicGet(Property* property,
@@ -7019,6 +7041,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     builder()->CallAnyReceiver(
         callee, args, feedback_index(feedback_spec()->AddCallICSlot()));
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
@@ -7223,6 +7246,7 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
         ->StoreAccumulatorInRegister(
             register_allocator()->GrowRegisterList(&args))
         .CallJSRuntime(Context::REFLECT_CONSTRUCT_INDEX, args);
+    GenerateTaintTrackingHook(expr);
     return;
   }
 
@@ -7242,6 +7266,7 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
     DCHECK_EQ(spread_position, CallNew::kNoSpread);
     builder()->Construct(constructor, args, feedback_slot_index);
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitSuperCallForwardArgs(SuperCallForwardArgs* expr) {
@@ -7275,6 +7300,7 @@ void BytecodeGenerator::VisitSuperCallForwardArgs(SuperCallForwardArgs* expr) {
 
   BuildInstanceInitializationAfterSuperCall(this_function, instance);
   builder()->LoadAccumulatorWithRegister(instance);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
@@ -7283,11 +7309,13 @@ void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   VisitArguments(expr->arguments(), &args);
   Runtime::FunctionId function_id = expr->function()->function_id;
   builder()->CallRuntime(function_id, args);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitVoid(UnaryOperation* expr) {
   VisitForEffect(expr->expression());
   builder()->LoadUndefined();
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
@@ -7305,6 +7333,7 @@ void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
 void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
   VisitForTypeOfValue(expr->expression());
   builder()->TypeOf(feedback_index(feedback_spec()->AddTypeOfSlot()));
+  GenerateTaintTrackingHook(expr);
   execution_result()->SetResultIsInternalizedString();
 }
 
@@ -7330,6 +7359,7 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
       builder()->LogicalNot(ToBooleanModeFromTypeHint(type_hint));
     }
     // Always returns a boolean value.
+    GenerateTaintTrackingHook(expr);
     execution_result()->SetResultIsBoolean();
   }
 }
@@ -7355,6 +7385,7 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       builder()->SetExpressionPosition(expr);
       builder()->UnaryOperation(
           expr->op(), feedback_index(feedback_spec()->AddBinaryOpICSlot()));
+      GenerateTaintTrackingHook(expr);
       break;
     default:
       UNREACHABLE();
@@ -7448,6 +7479,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* unary) {
     VisitForEffect(expr);
     builder()->LoadTrue();
   }
+  GenerateTaintTrackingHook(unary);
 }
 
 void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
@@ -7673,6 +7705,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
   if (is_postfix) {
     builder()->LoadAccumulatorWithRegister(old_value);
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitBinaryOperation(BinaryOperation* binop) {
@@ -7902,6 +7935,7 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         slot.IsInvalid() ? kFeedbackIsEmbedded : feedback_index(slot));
   }
   // Always returns a boolean value.
+  GenerateTaintTrackingHook(expr);
   execution_result()->SetResultIsBoolean();
 }
 
@@ -7980,6 +8014,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
       builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
     }
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
@@ -8009,6 +8044,7 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
     // If any operand of an ADD is a String, a String is produced.
     execution_result()->SetResultIsString();
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 // Note: the actual spreading is performed by the surrounding expression's
@@ -8035,6 +8071,7 @@ void BytecodeGenerator::VisitImportCallExpression(ImportCallExpression* expr) {
   }
 
   builder()->CallRuntime(Runtime::kDynamicImportCall, args);
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::BuildGetIterator(IteratorType hint) {
@@ -8193,6 +8230,7 @@ void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {
   template_objects_.push_back(std::make_pair(expr, entry));
   FeedbackSlot literal_slot = feedback_spec()->AddLiteralSlot();
   builder()->GetTemplateObject(entry, feedback_index(literal_slot));
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
@@ -8241,6 +8279,7 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
     builder()->LoadLiteral(parts.last());
     builder()->BinaryOperation(Token::kAdd, last_part, feedback_index(slot));
   }
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::BuildThisVariableLoad() {
@@ -8256,6 +8295,7 @@ void BytecodeGenerator::BuildThisVariableLoad() {
 
 void BytecodeGenerator::VisitThisExpression(ThisExpression* expr) {
   BuildThisVariableLoad();
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitSuperCallReference(SuperCallReference* expr) {
@@ -8274,6 +8314,7 @@ void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
   VisitForEffect(binop->left());
   builder()->SetExpressionAsStatementPosition(binop->right());
   Visit(binop->right());
+  GenerateTaintTrackingHook(binop);
 }
 
 void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
@@ -8287,6 +8328,7 @@ void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
   builder()->SetExpressionAsStatementPosition(
       expr->subsequent(expr->subsequent_length() - 1));
   Visit(expr->subsequent(expr->subsequent_length() - 1));
+  GenerateTaintTrackingHook(expr);
 }
 
 void BytecodeGenerator::VisitLogicalTestSubExpression(
@@ -8433,6 +8475,7 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
     }
     VisitInHoleCheckElisionScopeForAccumulatorValue(right);
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(binop);
   }
 }
 
@@ -8468,6 +8511,7 @@ void BytecodeGenerator::VisitNaryLogicalOrExpression(NaryOperation* expr) {
     // actual value.
     VisitForAccumulatorValue(expr->subsequent(expr->subsequent_length() - 1));
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(expr);
   }
 }
 
@@ -8496,6 +8540,7 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
     }
     VisitInHoleCheckElisionScopeForAccumulatorValue(right);
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(binop);
   }
 }
 
@@ -8530,6 +8575,7 @@ void BytecodeGenerator::VisitNaryLogicalAndExpression(NaryOperation* expr) {
     // actual value.
     VisitForAccumulatorValue(expr->subsequent(expr->subsequent_length() - 1));
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(expr);
   }
 }
 
@@ -8559,6 +8605,7 @@ void BytecodeGenerator::VisitNullishExpression(BinaryOperation* binop) {
     }
     VisitInHoleCheckElisionScopeForAccumulatorValue(right);
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(binop);
   }
 }
 
@@ -8593,6 +8640,7 @@ void BytecodeGenerator::VisitNaryNullishExpression(NaryOperation* expr) {
     // actual value.
     VisitForAccumulatorValue(expr->subsequent(expr->subsequent_length() - 1));
     end_labels.Bind(builder());
+    GenerateTaintTrackingHook(expr);
   }
 }
 
@@ -9038,6 +9086,65 @@ FeedbackVectorSpec* BytecodeGenerator::feedback_spec() {
 int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
   DCHECK(!slot.IsInvalid());
   return FeedbackVector::GetIndex(slot);
+}
+
+tainttracking::Status BytecodeGenerator::GenerateTaintTrackingHookPrepare(
+    AstNode* node, Handle<Object>* label) {
+  if (!local_isolate_->is_main_thread()) return tainttracking::Status::FAILURE;
+
+  Isolate* isolate = local_isolate_->AsIsolate();
+  if (!tainttracking::TaintTracker::FromIsolate(isolate)->IsRewriteAstEnabled()) {
+    return tainttracking::Status::FAILURE;
+  }
+
+  return node_serializer_.Serialize(label, node->GetTaintTrackingLabel());
+}
+
+void BytecodeGenerator::GenerateTaintTrackingHookBody(
+    AstNode* node, tainttracking::CheckType type) {
+  Handle<Object> label_value;
+  if (GenerateTaintTrackingHookPrepare(node, &label_value) ==
+      tainttracking::Status::FAILURE) {
+    return;
+  }
+
+  RegisterAllocationScope register_scope(this);
+  register_allocator()->PrepareForConsecutiveAllocations(
+      tainttracking::kRuntimeOnControlFlowExpArgs);
+
+  Register first_arg = register_allocator()->NextConsecutiveRegister();
+  builder()->StoreAccumulatorInRegister(first_arg);
+  Register label_arg = register_allocator()->NextConsecutiveRegister();
+  size_t label_entry = builder()->AllocateDeferredConstantPoolEntry();
+  builder()->SetDeferredConstantPoolEntry(label_entry, label_value);
+  builder()->LoadConstantPoolEntry(label_entry);
+  builder()->StoreAccumulatorInRegister(label_arg);
+  Register check_type_arg = register_allocator()->NextConsecutiveRegister();
+  builder()->LoadLiteral(Smi::FromInt(type));
+  builder()->StoreAccumulatorInRegister(check_type_arg);
+
+  EffectResultScope effect_scope(this);
+  builder()->CallRuntime(Runtime::kTaintTrackingHook, first_arg,
+                         tainttracking::kRuntimeOnControlFlowExpArgs);
+}
+
+void BytecodeGenerator::GenerateTaintTrackingHook(AstNode* node) {
+  GenerateTaintTrackingHookBody(node,
+                                tainttracking::CheckType::EXPRESSION_AFTER);
+}
+
+void BytecodeGenerator::GenerateTaintTrackingHook(
+    tainttracking::ValueState value_state, AstNode* node) {
+  builder()->LoadUndefined();
+  if (value_state == tainttracking::ValueState::OPTIMIZED_OUT) {
+    GenerateTaintTrackingHookBody(
+        node, tainttracking::CheckType::EXPRESSION_AFTER_OPTIMIZED_OUT);
+    return;
+  }
+
+  DCHECK_EQ(value_state, tainttracking::ValueState::STATIC_VALUE);
+  GenerateTaintTrackingHookBody(node,
+                                tainttracking::CheckType::STATIC_VALUE_CHECK);
 }
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadGlobalICSlot(

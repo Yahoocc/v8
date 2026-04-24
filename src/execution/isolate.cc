@@ -4711,6 +4711,7 @@ void Isolate::Deinit() {
 
   // We start with the heap tear down so that releasing managed objects does
   // not cause a GC.
+  taint_tracking_data_.reset();
   heap_.StartTearDown();
 
   DisallowGarbageCollection no_gc;
@@ -6123,6 +6124,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_->Initialize();
   define_own_stub_cache_->Initialize();
   interpreter_->Initialize();
+  taint_tracking_data_ = std::unique_ptr<tainttracking::TaintTracker>(
+      tainttracking::TaintTracker::New(serializer_enabled(), this));
+  if (!serializer_enabled()) {
+    taint_tracking_data_->Initialize(this);
+  }
   heap_.NotifyDeserializationComplete();
 
   delete setup_delegate_;

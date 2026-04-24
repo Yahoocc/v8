@@ -356,6 +356,10 @@ void StackFrameIteratorBase::SetNewFrame(StackFrame::Type type) {
 
 // -------------------------------------------------------------------------
 
+StackFrame::TaintStackFrameInfo StackFrame::InfoForTaintLog() {
+  return TaintStackFrameInfo();
+}
+
 void TypedFrameWithJSLinkage::Iterate(RootVisitor* v) const {
   IterateExpressions(v);
   IteratePc(v, constant_pool_address(), GcSafeLookupCode());
@@ -4026,6 +4030,37 @@ void PrintFunctionSource(StringStream* accumulator,
 }
 
 }  // namespace
+
+StackFrame::TaintStackFrameInfo JavaScriptFrame::InfoForTaintLog() {
+  Tagged<JSFunction> js_function = function();
+  Tagged<SharedFunctionInfo> shared = js_function->shared();
+  Isolate* frame_isolate = isolate();
+
+  TaintStackFrameInfo answer;
+  answer.shared_info = direct_handle(shared, frame_isolate);
+
+  Tagged<Object> script_obj = shared->script();
+  if (!IsScript(script_obj)) return answer;
+
+  Tagged<Script> script = Cast<Script>(script_obj);
+  auto script_handle = direct_handle(script, frame_isolate);
+  answer.script = script_handle;
+
+  SharedFunctionInfo::EnsureSourcePositionsAvailable(
+      frame_isolate, direct_handle(shared, frame_isolate));
+
+  int position = this->position();
+  if (position == kNoSourcePosition) {
+    position = shared->start_position();
+    answer.ast_taint_tracking_index = TaintStackFrameInfo::NO_SOURCE_INFO;
+  } else {
+    answer.ast_taint_tracking_index = TaintStackFrameInfo::SOURCE_POS_DEFAULT;
+  }
+
+  answer.position = position;
+  answer.lineNumber = Script::GetLineNumber(script_handle, position) + 1;
+  return answer;
+}
 
 void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
                             int index) const {

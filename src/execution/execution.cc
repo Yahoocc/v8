@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/logging/runtime-call-stats-scope.h"
+#include "src/taint_tracking.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/wasm-compiler.h"  // Only for static asserts.
@@ -38,22 +39,26 @@ struct InvokeParams {
   static InvokeParams SetUpForNew(
       Isolate* isolate, DirectHandle<Object> constructor,
       DirectHandle<Object> new_target,
-      base::Vector<const DirectHandle<Object>> args);
+      base::Vector<const DirectHandle<Object>> args,
+      tainttracking::FrameType frame_type);
 
   static InvokeParams SetUpForCall(
       Isolate* isolate, DirectHandle<Object> callable,
       DirectHandle<Object> receiver,
-      base::Vector<const DirectHandle<Object>> args);
+      base::Vector<const DirectHandle<Object>> args,
+      tainttracking::FrameType frame_type);
 
   static InvokeParams SetUpForTryCall(
       Isolate* isolate, DirectHandle<Object> callable,
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
       Execution::MessageHandling message_handling,
-      MaybeDirectHandle<Object>* exception_out);
+      MaybeDirectHandle<Object>* exception_out,
+      tainttracking::FrameType frame_type);
 
-  static InvokeParams SetUpForRunMicrotasks(Isolate* isolate,
-                                            MicrotaskQueue* microtask_queue);
+  static InvokeParams SetUpForRunMicrotasks(
+      Isolate* isolate, MicrotaskQueue* microtask_queue,
+      tainttracking::FrameType frame_type);
 
   bool IsScript() const {
     if (!IsJSFunction(*target)) return false;
@@ -78,6 +83,7 @@ struct InvokeParams {
 
   Execution::MessageHandling message_handling;
   MaybeDirectHandle<Object>* exception_out;
+  tainttracking::FrameType frame_type;
 
   bool is_construct;
   Execution::Target execution_target;
@@ -87,7 +93,8 @@ struct InvokeParams {
 InvokeParams InvokeParams::SetUpForNew(
     Isolate* isolate, DirectHandle<Object> constructor,
     DirectHandle<Object> new_target,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frame_type) {
   InvokeParams params;
   params.target = constructor;
   params.receiver = isolate->factory()->undefined_value();
@@ -97,6 +104,7 @@ InvokeParams InvokeParams::SetUpForNew(
   params.microtask_queue = nullptr;
   params.message_handling = Execution::MessageHandling::kReport;
   params.exception_out = nullptr;
+  params.frame_type = frame_type;
   params.is_construct = true;
   params.execution_target = Execution::Target::kCallable;
   return params;
@@ -106,7 +114,8 @@ InvokeParams InvokeParams::SetUpForNew(
 InvokeParams InvokeParams::SetUpForCall(
     Isolate* isolate, DirectHandle<Object> callable,
     DirectHandle<Object> receiver,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frame_type) {
   InvokeParams params;
   params.target = callable;
   params.receiver = NormalizeReceiver(isolate, receiver);
@@ -118,6 +127,7 @@ InvokeParams InvokeParams::SetUpForCall(
   params.microtask_queue = nullptr;
   params.message_handling = Execution::MessageHandling::kReport;
   params.exception_out = nullptr;
+  params.frame_type = frame_type;
   params.is_construct = false;
   params.execution_target = Execution::Target::kCallable;
   return params;
@@ -129,7 +139,8 @@ InvokeParams InvokeParams::SetUpForTryCall(
     DirectHandle<Object> receiver,
     base::Vector<const DirectHandle<Object>> args,
     Execution::MessageHandling message_handling,
-    MaybeDirectHandle<Object>* exception_out) {
+    MaybeDirectHandle<Object>* exception_out,
+    tainttracking::FrameType frame_type) {
   InvokeParams params;
   params.target = callable;
   params.receiver = NormalizeReceiver(isolate, receiver);
@@ -141,6 +152,7 @@ InvokeParams InvokeParams::SetUpForTryCall(
   params.microtask_queue = nullptr;
   params.message_handling = message_handling;
   params.exception_out = exception_out;
+  params.frame_type = frame_type;
   params.is_construct = false;
   params.execution_target = Execution::Target::kCallable;
   return params;
@@ -148,7 +160,8 @@ InvokeParams InvokeParams::SetUpForTryCall(
 
 // static
 InvokeParams InvokeParams::SetUpForRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue,
+    tainttracking::FrameType frame_type) {
   auto undefined = isolate->factory()->undefined_value();
   InvokeParams params;
   params.target = undefined;
@@ -158,6 +171,7 @@ InvokeParams InvokeParams::SetUpForRunMicrotasks(
   params.microtask_queue = microtask_queue;
   params.message_handling = Execution::MessageHandling::kReport;
   params.exception_out = nullptr;
+  params.frame_type = frame_type;
   params.is_construct = false;
   params.execution_target = Execution::Target::kRunMicrotasks;
   return params;
@@ -424,6 +438,14 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     }
   }
 
+  tainttracking::RuntimePrepareSymbolicStackFrame(isolate, params.frame_type);
+  for (DirectHandle<Object> arg : params.args) {
+    tainttracking::RuntimeAddLiteralArgumentToStackFrame(isolate, arg);
+  }
+  tainttracking::RuntimeSetReceiver(isolate, params.receiver,
+                                    isolate->factory()->undefined_value());
+  tainttracking::RuntimeEnterSymbolicStackFrame(isolate);
+
   // Placeholder for return value.
   Tagged<Object> value;
   DirectHandle<Code> code =
@@ -494,6 +516,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     }
   }
 
+  tainttracking::RuntimeExitSymbolicStackFrame(isolate);
+
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     Object::ObjectVerify(value, isolate);
@@ -557,64 +581,100 @@ MaybeDirectHandle<Object> InvokeWithTryCatch(Isolate* isolate,
 MaybeHandle<Object> Execution::Call(
     Isolate* isolate, DirectHandle<Object> callable,
     DirectHandle<Object> receiver,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frametype) {
   // Use Execution::CallScript instead for scripts:
   DCHECK_IMPLIES(IsJSFunction(*callable),
                  !Cast<JSFunction>(*callable)->shared()->is_script());
   return Invoke(isolate,
-                InvokeParams::SetUpForCall(isolate, callable, receiver, args));
+                InvokeParams::SetUpForCall(isolate, callable, receiver, args,
+                                           frametype));
+}
+
+// static
+MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
+                                    Handle<Object> receiver, int argc,
+                                    Handle<Object> argv[],
+                                    tainttracking::FrameType frametype) {
+  return Call(isolate, DirectHandle<Object>(callable),
+              DirectHandle<Object>(receiver), {argv, argc}, frametype);
 }
 
 // static
 MaybeHandle<Object> Execution::CallScript(
     Isolate* isolate, DirectHandle<JSFunction> script_function,
-    DirectHandle<Object> receiver, DirectHandle<Object> host_defined_options) {
+    DirectHandle<Object> receiver, DirectHandle<Object> host_defined_options,
+    tainttracking::FrameType frametype) {
   DCHECK(script_function->shared()->is_script());
   DCHECK(IsJSGlobalProxy(*receiver) || IsJSGlobalObject(*receiver));
   return Invoke(isolate,
                 InvokeParams::SetUpForCall(isolate, script_function, receiver,
-                                           {&host_defined_options, 1}));
+                                           {&host_defined_options, 1},
+                                           frametype));
 }
 
 MaybeHandle<Object> Execution::CallBuiltin(
     Isolate* isolate, DirectHandle<JSFunction> builtin,
     DirectHandle<Object> receiver,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frametype) {
   DCHECK(builtin->code(isolate)->is_builtin());
   DisableBreak no_break(isolate->debug());
   return Invoke(isolate,
-                InvokeParams::SetUpForCall(isolate, builtin, receiver, args));
+                InvokeParams::SetUpForCall(isolate, builtin, receiver, args,
+                                           frametype));
 }
 
 // static
 MaybeDirectHandle<JSReceiver> Execution::New(
     Isolate* isolate, DirectHandle<Object> constructor,
-    base::Vector<const DirectHandle<Object>> args) {
-  return New(isolate, constructor, constructor, args);
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frametype) {
+  return New(isolate, constructor, constructor, args, frametype);
+}
+
+// static
+MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor, int argc,
+                                   Handle<Object> argv[],
+                                   tainttracking::FrameType frametype) {
+  Handle<Object> constructor_object = constructor;
+  return New(constructor->GetIsolate(), constructor_object, constructor_object,
+             argc, argv, frametype);
 }
 
 // static
 MaybeDirectHandle<JSReceiver> Execution::New(
     Isolate* isolate, DirectHandle<Object> constructor,
     DirectHandle<Object> new_target,
-    base::Vector<const DirectHandle<Object>> args) {
+    base::Vector<const DirectHandle<Object>> args,
+    tainttracking::FrameType frametype) {
   return Cast<JSReceiver>(Invoke(
-      isolate,
-      InvokeParams::SetUpForNew(isolate, constructor, new_target, args)));
+      isolate, InvokeParams::SetUpForNew(isolate, constructor, new_target, args,
+                                         frametype)));
+}
+
+// static
+MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
+                                   Handle<Object> new_target, int argc,
+                                   Handle<Object> argv[],
+                                   tainttracking::FrameType frametype) {
+  return New(isolate, DirectHandle<Object>(constructor),
+             DirectHandle<Object>(new_target), {argv, argc}, frametype);
 }
 
 // static
 MaybeDirectHandle<Object> Execution::TryCallScript(
     Isolate* isolate, DirectHandle<JSFunction> script_function,
     DirectHandle<Object> receiver,
-    DirectHandle<FixedArray> host_defined_options) {
+    DirectHandle<FixedArray> host_defined_options,
+    tainttracking::FrameType frametype) {
   DCHECK(script_function->shared()->is_script());
   DCHECK(IsJSGlobalProxy(*receiver) || IsJSGlobalObject(*receiver));
   DirectHandle<Object> argument = host_defined_options;
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForTryCall(
                    isolate, script_function, receiver, {&argument, 1},
-                   MessageHandling::kKeepPending, nullptr));
+                   MessageHandling::kKeepPending, nullptr, frametype));
 }
 
 // static
@@ -623,20 +683,24 @@ MaybeDirectHandle<Object> Execution::TryCall(
     DirectHandle<Object> receiver,
     base::Vector<const DirectHandle<Object>> args,
     MessageHandling message_handling,
-    MaybeDirectHandle<Object>* exception_out) {
+    MaybeDirectHandle<Object>* exception_out,
+    tainttracking::FrameType frametype) {
   // Use Execution::TryCallScript instead for scripts:
   DCHECK_IMPLIES(IsJSFunction(*callable),
                  !Cast<JSFunction>(*callable)->shared()->is_script());
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForTryCall(isolate, callable, receiver, args,
-                                             message_handling, exception_out));
+                                             message_handling, exception_out,
+                                             frametype));
 }
 
 // static
 MaybeDirectHandle<Object> Execution::TryRunMicrotasks(
-    Isolate* isolate, MicrotaskQueue* microtask_queue) {
+    Isolate* isolate, MicrotaskQueue* microtask_queue,
+    tainttracking::FrameType frametype) {
   return InvokeWithTryCatch(
-      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue));
+      isolate, InvokeParams::SetUpForRunMicrotasks(isolate, microtask_queue,
+                                                   frametype));
 }
 
 struct StackHandlerMarker {

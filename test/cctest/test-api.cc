@@ -561,7 +561,8 @@ THREADED_TEST(Script) {
 }
 
 
-class TestResource: public String::ExternalStringResource {
+class TestResource: public String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit TestResource(uint16_t* data, int* counter = nullptr,
                         bool owning_data = true)
@@ -586,7 +587,9 @@ class TestResource: public String::ExternalStringResource {
 };
 
 
-class TestOneByteResource : public String::ExternalOneByteStringResource {
+class TestOneByteResource :
+ public String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit TestOneByteResource(const char* data, int* counter = nullptr,
                                size_t offset = 0)
@@ -893,8 +896,9 @@ THREADED_TEST(UsingExternalOneByteString) {
   i::heap::InvokeMajorGC(CcTest::heap());
 }
 
-
-class RandomLengthResource : public v8::String::ExternalStringResource {
+class RandomLengthResource :
+ public v8::String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit RandomLengthResource(int length) : length_(length) {}
   const uint16_t* data() const override { return string_; }
@@ -15505,7 +15509,9 @@ TEST(ObjectClone) {
 }
 
 
-class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
+class OneByteVectorResource :
+ public v8::String::ExternalOneByteStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit OneByteVectorResource(v8::base::Vector<const char> vector)
       : data_(vector) {}
@@ -15519,7 +15525,9 @@ class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
 };
 
 
-class UC16VectorResource : public v8::String::ExternalStringResource {
+class UC16VectorResource :
+ public v8::String::ExternalStringResource,
+ public v8::String::TaintTrackingStringBufferImpl {
  public:
   explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
       : data_(vector) {}

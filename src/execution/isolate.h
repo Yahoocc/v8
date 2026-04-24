@@ -50,6 +50,7 @@
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/trusted-pointer-table.h"
+#include "src/taint_tracking.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG
@@ -1982,6 +1983,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
+  tainttracking::TaintTracker* taint_tracking_data() const {
+    return taint_tracking_data_.get();
+  }
 
   compiler::PerIsolateCompilerCache* compiler_cache() const {
     return compiler_cache_;
@@ -2846,6 +2850,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   FutexWaitListNode futex_wait_list_node_;
 
   CancelableTaskManager* cancelable_task_manager_ = nullptr;
+  std::unique_ptr<tainttracking::TaintTracker> taint_tracking_data_;
 
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 

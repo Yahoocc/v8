@@ -7,7 +7,7 @@
 #include "src/taint_tracking/ast_serialization.h"
 #include "src/taint_tracking/log_listener.h"
 #include "src/taint_tracking/object_versioner.h"
-#include "src/taint_tracking/third_party/picosha2.h"
+#include "src/taint_tracking/picosha2.h"
 #include "v8/logrecord.capnp.h"
 
 // Other V8 imports

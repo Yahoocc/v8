@@ -25,6 +25,8 @@
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-list.h"
+#include "src/taint_tracking.h"
+#include "src/taint_tracking.h"
 
 namespace v8 {
 namespace internal {
@@ -153,6 +155,10 @@ class AstNode: public ZoneObject {
 
   NodeType node_type() const { return NodeTypeField::decode(bit_field_); }
   int position() const { return position_; }
+
+  tainttracking::NodeLabel GetTaintTrackingLabel();
+  void SetTaintTrackingLabel(tainttracking::NodeLabel label);
+
 
 #ifdef DEBUG
   void Print(Isolate* isolate);

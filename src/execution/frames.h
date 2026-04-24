@@ -386,6 +386,21 @@ class StackFrame {
   virtual void Print(StringStream* accumulator, PrintMode mode,
                      int index) const;
 
+  struct TaintStackFrameInfo {
+   static constexpr int NO_AST_INDEX = -1;
+   static constexpr int NO_SOURCE_INFO = -2;
+   static constexpr int SOURCE_POS_DEFAULT = -3;
+   static constexpr int UNINSTRUMENTED = -4;
+   MaybeHandle<Script> script = MaybeHandle<Script>();
+   MaybeHandle<SharedFunctionInfo> shared_info = MaybeHandle<SharedFunctionInfo>();
+     int lineNumber = -1;
+     int position = -1;
+     int ast_taint_tracking_index = NO_AST_INDEX;
+   };
+
+  virtual TaintStackFrameInfo InfoForTaintLog();
+ 
+
   Isolate* isolate() const { return isolate_; }
 
   void operator=(const StackFrame& original) = delete;
@@ -792,7 +807,7 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
-
+  TaintStackFrameInfo InfoForTaintLog() override;
   // Return a list with {SharedFunctionInfo} objects of this frame.
   virtual void GetFunctions(
       std::vector<Tagged<SharedFunctionInfo>>* functions) const;

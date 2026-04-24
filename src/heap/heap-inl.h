@@ -42,6 +42,7 @@
 #include "src/utils/allocation.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-list-inl.h"
+#include "src/taint_tracking.h"
 
 namespace v8 {
 namespace internal {

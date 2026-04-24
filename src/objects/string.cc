@@ -29,6 +29,7 @@
 #include "src/strings/string-hasher.h"
 #include "src/strings/string-search.h"
 #include "src/strings/string-stream.h"
+#include "src/taint_tracking.h"
 #include "src/strings/unicode-inl.h"
 #include "src/utils/ostreams.h"
 #include "src/zone/zone-allocator.h"
@@ -1955,6 +1956,10 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   uint32_t old_length = string->length();
   if (old_length <= new_length) return string;
 
+  base::SmallVector<tainttracking::TaintData, 256> taint_data(new_length);
+  tainttracking::CopyOut(*string, taint_data.data(), 0,
+                         static_cast<int>(new_length));
+
   if (IsSeqOneByteString(*string)) {
     old_size = SeqOneByteString::SizeFor(old_length);
     new_size = SeqOneByteString::SizeFor(new_length);
@@ -1983,6 +1988,8 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   // for the left-over space to avoid races with the sweeper thread.
   string->set_length(new_length, kReleaseStore);
   string->ClearPadding();
+  tainttracking::CopyIn(*string, taint_data.data(), 0,
+                        static_cast<int>(new_length));
 
   return string;
 }
