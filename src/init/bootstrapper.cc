@@ -1010,6 +1010,13 @@ Handle<JSFunction> SimpleInstallFunction(Isolate* isolate,
   return fun;
 }
 
+Handle<JSFunction> SimpleInstallFunction(Isolate* isolate,
+                                         DirectHandle<JSObject> base,
+                                         const char* name, Builtin call,
+                                         int len, PropertyAttributes attrs) {
+  return SimpleInstallFunction(isolate, base, name, call, len, kAdapt, attrs);
+}
+
 void Genesis::CreateIteratorMaps(DirectHandle<JSFunction> empty) {
   // Create iterator-related meta-objects.
   DirectHandle<JSObject> iterator_prototype = factory()->NewJSObject(

@@ -4722,6 +4722,7 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   StoreObjectFieldNoWriteBarrier(result,
                                  offsetof(SeqOneByteString, raw_hash_field_),
                                  Int32Constant(String::kEmptyHashField));
+  IncrementAndStoreTaintInstanceCounter(result);
   return CAST(result);
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
@@ -4756,6 +4757,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
   StoreObjectFieldNoWriteBarrier(result,
                                  offsetof(SeqTwoByteString, raw_hash_field_),
                                  Int32Constant(String::kEmptyHashField));
+  IncrementAndStoreTaintInstanceCounter(result);
   return CAST(result);
 }
 // LINT.ThenChange(/src/builtins/builtins-string-tsa-inl.h)
@@ -4778,6 +4780,7 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
                                  parent);
   StoreObjectFieldNoWriteBarrier(result, offsetof(SlicedString, offset_),
                                  offset);
+  IncrementAndStoreTaintInstanceCounter(result);
   return CAST(result);
 }
 
@@ -10473,6 +10476,11 @@ void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
     value = Int32Sub(value, Int32Constant(delta));
     StoreNoWriteBarrier(MachineRepresentation::kWord32, counter_address, value);
   }
+}
+
+void CodeStubAssembler::IncrementAndStoreTaintInstanceCounter(
+    TNode<HeapObject> result) {
+  USE(result);
 }
 
 template <typename TIndex>

@@ -348,7 +348,16 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   DirectHandle<JSStringIterator> NewJSStringIterator(Handle<String> string);
 
+  // Compatibility helpers for the NDSS taint-tracking port. Modern V8 folds
+  // these paths into higher-level internalization helpers, so keep explicit
+  // entry points here to make subsequent rebases less invasive.
+  Handle<String> NewOneByteInternalizedSubStringHelper(
+      DirectHandle<SeqOneByteString> string, uint32_t from, uint32_t length,
+      bool convert_encoding = false);
+
   DirectHandle<InternalizedString> NewInternalizedStringImpl(
+      DirectHandle<String> string, int len, uint32_t hash_field);
+  DirectHandle<InternalizedString> NewInternalizedStringImplHelper(
       DirectHandle<String> string, int len, uint32_t hash_field);
 
   // Compute the internalization strategy for the input string.

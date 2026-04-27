@@ -169,6 +169,7 @@ Tagged<JSAny> FunctionCallbackArguments::CallOrConstruct(
   // values_ array depending on whether it's a construct call or not.
   auto info =
       reinterpret_cast<FunctionCallbackInfo<v8::Value>*>(slot_at(0).location());
+  DCHECK(v8::tainttracking::SymbolicMatchesFunctionArgs(*info));
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f),
                                    is_construct ? ExceptionContext::kConstructor
                                                 : ExceptionContext::kOperation,

@@ -71,6 +71,10 @@ enum class V8StartupState {
 
 std::atomic<V8StartupState> v8_startup_state_(V8StartupState::kIdle);
 
+void InitializeTaintTrackingOncePerProcess() {}
+
+void TearDownTaintTrackingOncePerProcess() {}
+
 void AdvanceStartupState(V8StartupState expected_next_state) {
   V8StartupState current_state = v8_startup_state_;
   CHECK_NE(current_state, V8StartupState::kPlatformDisposed);
@@ -255,6 +259,7 @@ void V8::Initialize() {
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
   Bootstrapper::InitializeOncePerProcess();
+  InitializeTaintTrackingOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -280,6 +285,7 @@ void V8::Dispose() {
   RegisteredExtension::UnregisterAll();
   FlagList::ReleaseDynamicAllocations();
   IsolateGroup::TearDownOncePerProcess();
+  TearDownTaintTrackingOncePerProcess();
 #if defined(V8_ENABLE_SANDBOX) && defined(V8_ENABLE_MEMORY_CORRUPTION_API)
   ExternalStringsCage::TearDown();
 #endif  // V8_ENABLE_SANDBOX && V8_ENABLE_MEMORY_CORRUPTION_API

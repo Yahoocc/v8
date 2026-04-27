@@ -1445,6 +1445,10 @@ void StackFrame::Print(StringStream* accumulator, PrintMode mode,
                    reinterpret_cast<void*>(maybe_unauthenticated_pc()));
 }
 
+StackFrame::TaintStackFrameInfo StackFrame::InfoForTaintLog() const {
+  return {};
+}
+
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
   DisallowGarbageCollection no_gc;
@@ -2541,6 +2545,20 @@ Tagged<Object> JavaScriptFrame::context() const {
 
 Tagged<Script> JavaScriptFrame::script() const {
   return Cast<Script>(function()->shared()->script());
+}
+
+StackFrame::TaintStackFrameInfo JavaScriptFrame::InfoForTaintLog() const {
+  TaintStackFrameInfo info;
+  Tagged<Object> maybe_script = function()->shared()->script();
+  if (!IsScript(maybe_script)) return info;
+
+  Tagged<Script> script_object = Cast<Script>(maybe_script);
+  info.script = handle(script_object, isolate());
+  info.position = position();
+  if (info.position != kNoSourcePosition) {
+    info.line_number = script_object->GetLineNumber(info.position) + 1;
+  }
+  return info;
 }
 
 int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(

@@ -672,6 +672,12 @@ template Handle<String> Factory::InternalizeSubString(
     DirectHandle<SeqTwoByteString> string, uint32_t from, uint32_t length,
     bool convert_encoding);
 
+Handle<String> Factory::NewOneByteInternalizedSubStringHelper(
+    DirectHandle<SeqOneByteString> string, uint32_t from, uint32_t length,
+    bool convert_encoding) {
+  return InternalizeSubString(string, from, length, convert_encoding);
+}
+
 namespace {
 void ThrowInvalidEncodedStringBytes(Isolate* isolate, MessageTemplate message) {
 #if V8_ENABLE_WEBASSEMBLY
@@ -1021,7 +1027,7 @@ MaybeDirectHandle<String> Factory::NewStringFromTwoByteLittleEndian(
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
+DirectHandle<InternalizedString> Factory::NewInternalizedStringImplHelper(
     DirectHandle<String> string, int len, uint32_t hash_field) {
   if (string->IsOneByteRepresentation()) {
     DirectHandle<SeqOneByteString> result =
@@ -1036,6 +1042,11 @@ DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
   DisallowGarbageCollection no_gc;
   String::WriteToFlat(*string, result->GetChars(no_gc), 0, len);
   return Cast<InternalizedString>(result);
+}
+
+DirectHandle<InternalizedString> Factory::NewInternalizedStringImpl(
+    DirectHandle<String> string, int len, uint32_t hash_field) {
+  return NewInternalizedStringImplHelper(string, len, hash_field);
 }
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(

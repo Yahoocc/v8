@@ -138,6 +138,7 @@ BUILTIN(HandleApiCall) {
   }
 }
 
+<<<<<<< HEAD
 namespace {
 
 class RelocatableArguments : public BuiltinArguments, public Relocatable {
@@ -165,6 +166,16 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function)->shared()->IsApiFunction()));
+=======
+MaybeHandle<Object> Builtins::InvokeApiFunction(
+    Isolate* isolate, bool is_construct,
+    DirectHandle<FunctionTemplateInfo> function, DirectHandle<Object> receiver,
+    base::Vector<const DirectHandle<Object>> args,
+    DirectHandle<HeapObject> new_target,
+    tainttracking::FrameType frame_type) {
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
+  USE(frame_type);
+>>>>>>> 58772242 (category5: port core directory reorg changes)
 
   // Do proper receiver conversion for non-strict mode api functions.
   if (!receiver->IsJSReceiver()) {

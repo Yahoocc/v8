@@ -56,8 +56,13 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   explicit SourcePositionTableBuilder(
       Zone* zone, RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
+  static constexpr int NO_TAINT_TRACKING_INDEX = -1;
+
   void AddPosition(size_t code_offset, SourcePosition source_position,
                    bool is_statement, bool is_breakable = true);
+  void AddPosition(size_t code_offset, SourcePosition source_position,
+                   bool is_statement, int ast_taint_tracking_index,
+                   bool is_breakable = true);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
@@ -143,6 +148,10 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   bool is_breakable() const {
     DCHECK(!done());
     return current_.is_breakable;
+  }
+  int ast_taint_tracking_index() const {
+    DCHECK(!done());
+    return SourcePositionTableBuilder::NO_TAINT_TRACKING_INDEX;
   }
   bool done() const { return index_ == kDone; }
 

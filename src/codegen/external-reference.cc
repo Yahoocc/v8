@@ -397,6 +397,12 @@ ExternalReference ExternalReference::Create(StatsCounter* counter) {
 }
 
 // static
+ExternalReference ExternalReference::Create(
+    tainttracking::InstanceCounter* counter) {
+  return ExternalReference(reinterpret_cast<Address>(counter));
+}
+
+// static
 ExternalReference ExternalReference::Create(IsolateFieldId id,
                                             Isolate* isolate) {
   return ExternalReference(isolate->isolate_data()->GetAddress(id));

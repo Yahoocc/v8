@@ -621,6 +621,7 @@ class ExternalReference {
   ExternalReference() : raw_(kNullAddress) {}
   static ExternalReference Create(const SCTableReference& table_ref);
   static ExternalReference Create(StatsCounter* counter);
+  static ExternalReference Create(tainttracking::InstanceCounter* counter);
   static V8_EXPORT_PRIVATE ExternalReference Create(ApiFunction* ptr,
                                                     Type type);
   // The following version is used by JSCallReducer in the compiler

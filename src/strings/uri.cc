@@ -190,8 +190,11 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
   }
 
   if (two_byte_buffer.empty()) {
-    return isolate->factory()->NewStringFromOneByte(base::Vector<const uint8_t>(
-        one_byte_buffer.data(), static_cast<int>(one_byte_buffer.size())));
+    auto result = isolate->factory()->NewStringFromOneByte(
+        base::Vector<const uint8_t>(one_byte_buffer.data(),
+                                    static_cast<int>(one_byte_buffer.size())));
+    tainttracking::CheckTaintDebug(result);
+    return result;
   }
 
   DirectHandle<SeqTwoByteString> result;
@@ -210,6 +213,7 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
     CopyChars(chars, two_byte_buffer.data(), two_byte_buffer.size());
   }
 
+  tainttracking::CheckTaintDebug(result);
   return result;
 }
 
@@ -404,8 +408,12 @@ MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
   EncodeStatus status = EncodeHelper(uri, is_uri, &buffer);
 
   switch (status) {
-    case EncodeStatus::kSuccess:
-      return isolate->factory()->NewStringFromOneByte(base::VectorOf(buffer));
+    case EncodeStatus::kSuccess: {
+      auto result = isolate->factory()->NewStringFromOneByte(
+          base::VectorOf(buffer));
+      tainttracking::CheckTaintDebug(result);
+      return result;
+    }
     case EncodeStatus::kUriError:
       THROW_NEW_ERROR(isolate, NewURIError());
     case EncodeStatus::kAllocationFailure:
@@ -597,17 +605,21 @@ static MaybeHandle<String> EscapePrivate(Isolate* isolate,
 
 MaybeDirectHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   string = String::Flatten(isolate, string);
-  return String::IsOneByteRepresentationUnderneath(*string)
-             ? EscapePrivate<uint8_t>(isolate, string)
-             : EscapePrivate<base::uc16>(isolate, string);
+  auto result = String::IsOneByteRepresentationUnderneath(*string)
+                    ? EscapePrivate<uint8_t>(isolate, string)
+                    : EscapePrivate<base::uc16>(isolate, string);
+  tainttracking::CheckTaintDebug(result);
+  return result;
 }
 
 MaybeDirectHandle<String> Uri::Unescape(Isolate* isolate,
                                         Handle<String> string) {
   string = String::Flatten(isolate, string);
-  return String::IsOneByteRepresentationUnderneath(*string)
-             ? UnescapePrivate<uint8_t>(isolate, string)
-             : UnescapePrivate<base::uc16>(isolate, string);
+  auto result = String::IsOneByteRepresentationUnderneath(*string)
+                    ? UnescapePrivate<uint8_t>(isolate, string)
+                    : UnescapePrivate<base::uc16>(isolate, string);
+  tainttracking::CheckTaintDebug(result);
+  return result;
 }
 
 }  // namespace internal

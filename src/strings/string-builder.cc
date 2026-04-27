@@ -61,6 +61,23 @@ template void StringBuilderConcatHelper<base::uc16>(
     Tagged<String> special, base::uc16* sink, Tagged<FixedArray> fixed_array,
     uint32_t array_length, tainttracking::TaintData*);
 
+template <typename sinkchar>
+void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
+                               Tagged<FixedArray> fixed_array,
+                               uint32_t array_length,
+                               tainttracking::TaintData* taint_sink) {
+  USE(taint_sink);
+  StringBuilderConcatHelper(special, sink, fixed_array, array_length);
+}
+
+template void StringBuilderConcatHelper<uint8_t>(
+    Tagged<String> special, uint8_t* sink, Tagged<FixedArray> fixed_array,
+    uint32_t array_length, tainttracking::TaintData* taint_sink);
+
+template void StringBuilderConcatHelper<base::uc16>(
+    Tagged<String> special, base::uc16* sink, Tagged<FixedArray> fixed_array,
+    uint32_t array_length, tainttracking::TaintData* taint_sink);
+
 int StringBuilderConcatLength(int special_length,
                               Tagged<FixedArray> fixed_array, int array_length,
                               bool* one_byte) {
@@ -242,6 +259,7 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
     tainttracking::OnJoinManyStrings(*seq, *array_builder_.array());
     joined_string = Cast<String>(seq);
   }
+  tainttracking::CheckTaintDebug(joined_string);
   return joined_string;
 }
 

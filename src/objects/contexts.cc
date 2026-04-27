@@ -231,6 +231,18 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
+  return Lookup(context, name, flags, index, attributes, init_flag,
+                variable_mode, nullptr, is_sloppy_function_name);
+}
+
+// static
+Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
+                               ContextLookupFlags flags, int* index,
+                               PropertyAttributes* attributes,
+                               InitializationFlag* init_flag,
+                               VariableMode* variable_mode,
+                               int* symbolic_index,
+                               bool* is_sloppy_function_name) {
   Isolate* isolate = Isolate::Current();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
@@ -239,6 +251,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
   *attributes = ABSENT;
   *init_flag = kCreatedInitialized;
   *variable_mode = VariableMode::kVar;
+  if (symbolic_index != nullptr) {
+    *symbolic_index = kNotFound;
+  }
   if (is_sloppy_function_name != nullptr) {
     *is_sloppy_function_name = false;
   }
@@ -288,6 +303,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           *variable_mode = r.mode;
           *init_flag = r.init_flag;
           *attributes = GetAttributesForMode(r.mode);
+          if (symbolic_index != nullptr) {
+            *symbolic_index = r.taint_symbolic_index;
+          }
           return handle(script_context, isolate);
         }
       }
@@ -367,6 +385,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         *variable_mode = lookup_result.mode;
         *init_flag = lookup_result.init_flag;
         *attributes = GetAttributesForMode(lookup_result.mode);
+        if (symbolic_index != nullptr) {
+          *symbolic_index = lookup_result.taint_symbolic_index;
+        }
         return context;
       }
 
@@ -384,6 +405,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
           *attributes = READ_ONLY;
           *init_flag = kCreatedInitialized;
           *variable_mode = VariableMode::kConst;
+          if (symbolic_index != nullptr) {
+            *symbolic_index = kNotFound;
+          }
           if (is_sloppy_function_name != nullptr &&
               is_sloppy(scope_info->language_mode())) {
             *is_sloppy_function_name = true;
@@ -410,6 +434,9 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                             cell_index) == SourceTextModuleDescriptor::kExport
                             ? GetAttributesForMode(mode)
                             : READ_ONLY;
+          if (symbolic_index != nullptr) {
+            *symbolic_index = kNotFound;
+          }
           return handle(context->module(), isolate);
         }
       }
@@ -434,7 +461,8 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         Handle<Context> wrapped_context(Cast<Context>(obj), isolate);
         Handle<Object> result =
             Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
-                            attributes, init_flag, variable_mode);
+                            attributes, init_flag, variable_mode,
+                            symbolic_index);
         if (!result.is_null()) return result;
       }
     }

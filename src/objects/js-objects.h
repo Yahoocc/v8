@@ -99,7 +99,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
         std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
   V8_WARN_UNUSED_RESULT static typename HandleType<Object>::MaybeType
   ToPrimitive(Isolate* isolate, HandleType<JSReceiver> receiver,
-              ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
+              ToPrimitiveHint hint = ToPrimitiveHint::kDefault,
+              tainttracking::FrameType frame_type =
+                  tainttracking::FrameType::kUnknownCApi);
 
   // ES6 section 7.1.1.1 OrdinaryToPrimitive
   template <template <typename> typename HandleType>

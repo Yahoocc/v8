@@ -22,6 +22,12 @@ namespace internal {
 
 #include "src/codegen/define-code-stub-assembler-macros.inc"
 
+namespace {
+
+bool UseTaintTrackingSubstringRuntimeFallback() { return false; }
+
+}  // namespace
+
 TNode<RawPtrT> StringBuiltinsAssembler::DirectStringData(
     TNode<String> string, TNode<Word32T> string_instance_type) {
   // Compute the effective offset of the first character.
@@ -2078,6 +2084,10 @@ TNode<String> StringBuiltinsAssembler::SubString(TNode<String> string,
 
   const TNode<IntPtrT> substr_length = IntPtrSub(to, from);
   const TNode<IntPtrT> string_length = LoadStringLengthAsWord(string);
+
+  if (UseTaintTrackingSubstringRuntimeFallback()) {
+    Goto(&runtime);
+  }
 
   // Begin dispatching based on substring length.
 

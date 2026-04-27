@@ -3422,6 +3422,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);
+  void IncrementAndStoreTaintInstanceCounter(TNode<HeapObject> result);
 
   template <typename TIndex>
   void Increment(TVariable<TIndex>* variable, int value = 1);
