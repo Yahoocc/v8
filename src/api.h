@@ -5,9 +5,8 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "include/v8-testing.h"
-#include "src/contexts.h"
-#include "src/factory.h"
+#include "src/objects/contexts.h"
+#include "src/heap/factory.h"
 #include "src/isolate.h"
 #include "src/list.h"
 #include "src/objects-inl.h"

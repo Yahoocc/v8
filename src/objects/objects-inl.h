@@ -965,7 +965,7 @@ template <typename T, template <typename> typename HandleType>
   requires(std::is_convertible_v<HandleType<T>, DirectHandle<T>>)
 typename HandleType<Object>::MaybeType Object::ToPrimitive(
     Isolate* isolate, HandleType<T> input, ToPrimitiveHint hint,
-    tainttracking::FrameType frame_type) {
+    ::tainttracking::FrameType frame_type) {
   if (IsPrimitive(*input)) return input;
   return JSReceiver::ToPrimitive(isolate, Cast<JSReceiver>(input), hint,
                                  frame_type);

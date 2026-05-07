@@ -1828,7 +1828,7 @@ template <typename Char>
 Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
                                             Handle<String> hint) {
   auto finish_string = [](Handle<String> result) {
-    tainttracking::CheckTaintDebug(result);
+    ::tainttracking::CheckTaintDebug(result);
     return result;
   };
 
@@ -1845,7 +1845,7 @@ Handle<String> JsonParser<Char>::MakeString(const JsonString& string,
   }
 
   if (string.internalize() && !string.has_escape() &&
-      tainttracking::kInternalizedStringsEnabled) {
+      ::tainttracking::kInternalizedStringsEnabled) {
     if (!hint.is_null()) {
       base::Vector<const Char> data(chars_ + string.start(), string.length());
       if (Matches(data, hint)) return finish_string(hint);

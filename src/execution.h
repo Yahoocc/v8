@@ -27,7 +27,7 @@ class Execution final : public AllStatic {
       Handle<Object> receiver,
       int argc,
       Handle<Object> argv[],
-      tainttracking::FrameType frametype = tainttracking::FrameType::UNKNOWN_CAPI);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI);
 
   // Construct object from function, the caller supplies an array of
   // arguments.
@@ -35,14 +35,14 @@ class Execution final : public AllStatic {
       Handle<JSFunction> constructor,
       int argc,
       Handle<Object> argv[],
-      tainttracking::FrameType frametype = tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI_NEW);
   MUST_USE_RESULT static MaybeHandle<Object> New(
       Isolate* isolate,
       Handle<Object> constructor,
       Handle<Object> new_target,
       int argc,
       Handle<Object> argv[],
-      tainttracking::FrameType frametype = tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI_NEW);
 
   // Call a function, just like Call(), but make sure to silently catch
   // any thrown exceptions. The return value is either the result of

@@ -92,7 +92,7 @@ config("cctest_sources_config") {
 v8_cluster_source_set("cctest_sources") {
   testonly = true
 
-  configs += [ ":cctest_taint_tracking_config" ]
+
 
   exclude_from_cluster = [
     "compiler/test-code-generator.cc",

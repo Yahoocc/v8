@@ -201,7 +201,7 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      tainttracking::FlattenTaint(*string, *result, 0, string->length());
+      ::tainttracking::FlattenTaint(*string, *result, 0, string->length());
       DCHECK(result->SupportsExternalization(encoding));
       return result;
     }
@@ -214,7 +214,7 @@ MaybeDirectHandle<String> CreateExternalizableString(
       DisallowGarbageCollection no_gc;
       String::WriteToFlat(*string, result->GetChars(no_gc), 0,
                           string->length());
-      tainttracking::FlattenTaint(*string, *result, 0, string->length());
+      ::tainttracking::FlattenTaint(*string, *result, 0, string->length());
       DCHECK(result->SupportsExternalization(encoding));
       return result;
     }

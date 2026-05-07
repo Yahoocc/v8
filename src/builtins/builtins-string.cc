@@ -319,7 +319,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
     current = next;
   }
   if (has_changed_character) {
-    tainttracking::OnConvertCase(string, result);
+    ::tainttracking::OnConvertCase(string, result);
     return result;
   } else {
     // If we didn't actually change anything in doing the conversion
@@ -372,7 +372,7 @@ V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
         prefix;
     // If not ASCII, we discard the result and take the 2 byte path.
     if (index_to_first_unprocessed == length) {
-      tainttracking::OnConvertCase(*s, *result);
+      ::tainttracking::OnConvertCase(*s, *result);
       return *result;
     }
   }
