@@ -1324,8 +1324,8 @@ Address SeqOneByteString::GetCharsAddress() const {
   return reinterpret_cast<Address>(&chars()[0]);
 }
 
-byte* SeqOneByteString::GetTaintChars() {
-  return reinterpret_cast<byte*>(GetCharsAddress() + length() * kCharSize);
+unsigned char* SeqOneByteString::GetTaintChars() {
+  return reinterpret_cast<unsigned char*>(GetCharsAddress() + length() * kCharSize);
 }
 
 uint8_t* SeqOneByteString::GetChars(const DisallowGarbageCollection& no_gc) {
@@ -1346,8 +1346,8 @@ Address SeqTwoByteString::GetCharsAddress() const {
   return reinterpret_cast<Address>(&chars()[0]);
 }
 
-byte* SeqTwoByteString::GetTaintChars() {
-  return reinterpret_cast<byte*>(GetCharsAddress() + length() * sizeof(base::uc16));
+unsigned char* SeqTwoByteString::GetTaintChars() {
+  return reinterpret_cast<unsigned char*>(GetCharsAddress() + length() * sizeof(base::uc16));
 }
 
 base::uc16* SeqTwoByteString::GetChars(const DisallowGarbageCollection& no_gc) {

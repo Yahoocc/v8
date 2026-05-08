@@ -87,8 +87,8 @@ class IncrementalStringBuilder {
 
   template <typename SrcChar, typename DestChar>
   V8_INLINE void Append(
-      SrcChar c, tainttracking::TaintType type =
-                     tainttracking::TaintType::UNTAINTED);
+      SrcChar c, ::tainttracking::TaintType type =
+                     ::tainttracking::TaintType::UNTAINTED);
 
   V8_INLINE void AppendCharacter(uint8_t c);
 
@@ -97,8 +97,8 @@ class IncrementalStringBuilder {
 
   template <typename SrcChar>
   V8_INLINE void AppendCString(
-      const SrcChar* s, tainttracking::TaintType type =
-                            tainttracking::TaintType::UNTAINTED);
+      const SrcChar* s, ::tainttracking::TaintType type =
+                            ::tainttracking::TaintType::UNTAINTED);
   V8_INLINE void AppendString(std::string_view str);
 
   V8_INLINE void AppendInt(int i);

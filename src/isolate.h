@@ -10,18 +10,18 @@
 #include <set>
 
 #include "include/v8-debug.h"
-#include "src/allocation.h"
-#include "src/assert-scope.h"
+#include "src/utils/allocation.h"
+#include "src/common/assert-scope.h"
 #include "src/base/accounting-allocator.h"
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
 #include "src/builtins/builtins.h"
 #include "src/cancelable-task.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
-#include "src/contexts.h"
+#include "src/objects/contexts.h"
 #include "src/date.h"
 #include "src/execution.h"
-#include "src/frames.h"
+#include "src/execution/frames.h"
 #include "src/futex-emulation.h"
 #include "src/global-handles.h"
 #include "src/handles.h"
@@ -1171,7 +1171,7 @@ class Isolate {
 
   void SetRAILMode(RAILMode rail_mode);
 
-  tainttracking::TaintTracker* taint_tracking_data();
+  ::tainttracking::TaintTracker* taint_tracking_data();
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1446,7 +1446,7 @@ class Isolate {
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
 
-  std::unique_ptr<tainttracking::TaintTracker> taint_tracking_data_;
+  std::unique_ptr<::tainttracking::TaintTracker> taint_tracking_data_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

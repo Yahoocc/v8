@@ -1760,11 +1760,7 @@ class CurrentScriptIdsAndContextsStackVisitor {
   size_t cur_frame_ = 0;
 };
 
-tainttracking::TaintTracker* Isolate::taint_tracking_data() { return nullptr; }
-
-const tainttracking::TaintTracker* Isolate::taint_tracking_data() const {
-  return nullptr;
-}
+namespace {
 
 class CurrentScriptDataStackVisitor {
  public:
@@ -3037,6 +3033,14 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   }
 
   UNREACHABLE();
+}
+
+::tainttracking::TaintTracker* Isolate::taint_tracking_data() { return nullptr; }
+
+const ::tainttracking::TaintTracker* Isolate::taint_tracking_data() const {
+  return nullptr;
+}
+
 }  // namespace internal
 
 namespace {
@@ -6130,8 +6134,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   store_stub_cache_->Initialize();
   define_own_stub_cache_->Initialize();
   interpreter_->Initialize();
-  taint_tracking_data_ = std::unique_ptr<tainttracking::TaintTracker>(
-      tainttracking::TaintTracker::New(serializer_enabled(), this));
+  taint_tracking_data_ = std::unique_ptr<::tainttracking::TaintTracker>(
+      ::tainttracking::TaintTracker::New(serializer_enabled(), this));
   if (!serializer_enabled()) {
     taint_tracking_data_->Initialize(this);
   }

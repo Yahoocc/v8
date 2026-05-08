@@ -162,7 +162,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(Isolate* isolate,
                                                 Handle<Object> receiver,
                                                 int argc,
                                                 Handle<Object> args[],
-                                                tainttracking::FrameType frametype) {
+                                                ::tainttracking::FrameType frametype) {
   DCHECK(function->IsFunctionTemplateInfo() ||
          (function->IsJSFunction() &&
           JSFunction::cast(*function)->shared()->IsApiFunction()));
@@ -172,7 +172,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
     DirectHandle<FunctionTemplateInfo> function, DirectHandle<Object> receiver,
     base::Vector<const DirectHandle<Object>> args,
     DirectHandle<HeapObject> new_target,
-    tainttracking::FrameType frame_type) {
+    ::tainttracking::FrameType frame_type) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvokeApiFunction);
   USE(frame_type);
 >>>>>>> 58772242 (category5: port core directory reorg changes)
@@ -187,11 +187,11 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
     }
   }
 
-  tainttracking::RuntimePrepareSymbolicStackFrame(isolate, frametype);
+  ::tainttracking::RuntimePrepareSymbolicStackFrame(isolate, frametype);
   for (int i = 0; i < argc; i++) {
-    tainttracking::RuntimeAddLiteralArgumentToStackFrame(isolate, args[i]);
+    ::tainttracking::RuntimeAddLiteralArgumentToStackFrame(isolate, args[i]);
   }
-  tainttracking::RuntimeEnterSymbolicStackFrame(isolate);
+  ::tainttracking::RuntimeEnterSymbolicStackFrame(isolate);
 
   Handle<FunctionTemplateInfo> fun_data =
       function->IsFunctionTemplateInfo()
@@ -226,7 +226,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
                                         receiver, arguments);
   }
 
-  tainttracking::RuntimeExitSymbolicStackFrame(isolate);
+  ::tainttracking::RuntimeExitSymbolicStackFrame(isolate);
 
   if (argv != small_argv) delete[] argv;
   return result;
@@ -255,13 +255,13 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
   }
 
 
-  tainttracking::RuntimePrepareSymbolicStackFrame(
-      isolate, tainttracking::FrameType::UNKNOWN_EXTERNAL);
+  ::tainttracking::RuntimePrepareSymbolicStackFrame(
+      isolate, ::tainttracking::FrameType::UNKNOWN_EXTERNAL);
   for (int i = 0; i < args.length(); i++) {
-    tainttracking::RuntimeAddLiteralArgumentToStackFrame(
+    ::tainttracking::RuntimeAddLiteralArgumentToStackFrame(
         isolate, handle(args[i], isolate));
   }
-  tainttracking::RuntimeEnterSymbolicStackFrame(isolate);
+  ::tainttracking::RuntimeEnterSymbolicStackFrame(isolate);
 
   // Get the invocation callback from the function descriptor that was
   // used to create the called object.
@@ -296,7 +296,7 @@ MUST_USE_RESULT static Object* HandleApiCallAsFunctionOrConstructor(
     }
   }
 
-  tainttracking::RuntimeExitSymbolicStackFrame(isolate);
+  ::tainttracking::RuntimeExitSymbolicStackFrame(isolate);
 
   // Check for exceptions and return result.
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);

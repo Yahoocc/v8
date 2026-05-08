@@ -1445,10 +1445,6 @@ void StackFrame::Print(StringStream* accumulator, PrintMode mode,
                    reinterpret_cast<void*>(maybe_unauthenticated_pc()));
 }
 
-StackFrame::TaintStackFrameInfo StackFrame::InfoForTaintLog() const {
-  return {};
-}
-
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
   DisallowGarbageCollection no_gc;
@@ -2547,19 +2543,6 @@ Tagged<Script> JavaScriptFrame::script() const {
   return Cast<Script>(function()->shared()->script());
 }
 
-StackFrame::TaintStackFrameInfo JavaScriptFrame::InfoForTaintLog() const {
-  TaintStackFrameInfo info;
-  Tagged<Object> maybe_script = function()->shared()->script();
-  if (!IsScript(maybe_script)) return info;
-
-  Tagged<Script> script_object = Cast<Script>(maybe_script);
-  info.script = handle(script_object, isolate());
-  info.position = position();
-  if (info.position != kNoSourcePosition) {
-    info.line_number = script_object->GetLineNumber(info.position) + 1;
-  }
-  return info;
-}
 
 int CommonFrameWithJSLinkage::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
@@ -4055,17 +4038,17 @@ StackFrame::TaintStackFrameInfo JavaScriptFrame::InfoForTaintLog() {
   Isolate* frame_isolate = isolate();
 
   TaintStackFrameInfo answer;
-  answer.shared_info = direct_handle(shared, frame_isolate);
+  answer.shared_info = handle(shared, frame_isolate);
 
   Tagged<Object> script_obj = shared->script();
   if (!IsScript(script_obj)) return answer;
 
   Tagged<Script> script = Cast<Script>(script_obj);
-  auto script_handle = direct_handle(script, frame_isolate);
+  auto script_handle = handle(script, frame_isolate);
   answer.script = script_handle;
 
   SharedFunctionInfo::EnsureSourcePositionsAvailable(
-      frame_isolate, direct_handle(shared, frame_isolate));
+      frame_isolate, handle(shared, frame_isolate));
 
   int position = this->position();
   if (position == kNoSourcePosition) {

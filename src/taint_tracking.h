@@ -21,14 +21,13 @@ namespace internal {
 class FunctionLiteral;
 class Parser;
 class ParseInfo;
-};
-};
+}
+}
 
 namespace tainttracking {
 
 class AstSerializer;
 
-typedef v8::String::TaintType TaintType;
 typedef v8::String::TaintSinkLabel TaintSinkLabel;
 typedef v8::String::TaintData TaintData;
 const uint64_t NO_MESSAGE = -1;
@@ -70,6 +69,7 @@ public:
   NodeLabel();
   NodeLabel(Rand, Counter);
   NodeLabel(const NodeLabel& other);
+  NodeLabel& operator=(const NodeLabel& other);
 
   Rand GetRand() const;
   Counter GetCounter() const;
@@ -167,8 +167,6 @@ enum BranchType {
 typedef uint32_t TaintFlag;
 const TaintFlag kTaintFlagUntainted = 0;
 
-typedef int64_t InstanceCounter;
-const InstanceCounter kUndefinedInstanceCounter = -1;
 
 std::string TaintTypeToString(TaintType type);
 std::string TaintFlagToString(TaintFlag flag);
@@ -185,7 +183,7 @@ struct TaintInstanceInfo {
 
 class TaintListener {
 public:
-  virtual ~TaintListener() {};
+  virtual ~TaintListener() = default;
   virtual void OnTaintedCompilation(const TaintInstanceInfo& info,
                                     v8::internal::Isolate* isolate) = 0;
 };
@@ -218,7 +216,6 @@ private:
 };
 
 const bool kTaintTrackingEnabled = true;
-const bool kInternalizedStringsEnabled = !kTaintTrackingEnabled;
 
 
 // Functions for manipulating taint data
@@ -317,7 +314,7 @@ void JSSetTaintBuffer(
     v8::internal::Handle<v8::internal::String> str,
     v8::internal::Handle<v8::internal::JSArrayBuffer> data);
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::JSArrayBuffer>
+v8::internal::Handle<v8::internal::JSArrayBuffer>
 JSGetTaintStatus(v8::internal::Handle<v8::internal::String> str,
                  v8::internal::Isolate* isolate);
 void JSTaintLog(v8::internal::Handle<v8::internal::String> str,
@@ -328,7 +325,7 @@ v8::internal::Handle<v8::internal::Object> JSCheckTaintMaybeLog(
     v8::internal::Handle<v8::internal::Object> tag,
     int symbolic_data);
 
-MUST_USE_RESULT v8::internal::Handle<v8::internal::HeapObject>
+v8::internal::Handle<v8::internal::HeapObject>
 JSTaintConstants(v8::internal::Isolate* isolate);
 
 

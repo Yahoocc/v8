@@ -3613,12 +3613,12 @@ MaybeDirectHandle<Object> JsonStringify(Isolate* isolate, Handle<JSAny> object,
                                         Handle<Object> gap) {
   if (CanUseFastStringifier(replacer, gap)) {
     auto result = FastJsonStringify(isolate, object);
-    tainttracking::CheckTaintDebug(result);
+    ::tainttracking::CheckTaintDebug(result);
     return result;
   } else {
     JsonStringifier stringifier(isolate);
     auto result = stringifier.Stringify(object, replacer, gap);
-    tainttracking::CheckTaintDebug(result);
+    ::tainttracking::CheckTaintDebug(result);
     return result;
   }
 }

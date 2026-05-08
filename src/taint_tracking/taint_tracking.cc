@@ -2637,6 +2637,6 @@ void RuntimeParameterToContextStorage(
 
 }  // namespace tainttracking
 
-STATIC_ASSERT(tainttracking::TaintType::UNTAINTED == 0);
-STATIC_ASSERT(sizeof(tainttracking::TaintFlag) * kBitsPerByte >=
-              tainttracking::TaintType::MAX_TAINT_TYPE);
+STATIC_ASSERT(::tainttracking::TaintType::UNTAINTED == 0);
+STATIC_ASSERT(sizeof(::tainttracking::TaintFlag) * kBitsPerByte >=
+              ::tainttracking::TaintType::MAX_TAINT_TYPE);

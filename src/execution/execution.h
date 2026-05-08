@@ -29,12 +29,12 @@ class Execution final : public AllStatic {
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static MaybeHandle<Object> Call(
       Isolate* isolate, Handle<Object> callable, Handle<Object> receiver,
       int argc, Handle<Object> argv[],
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
   // Run a script. For JSFunctions that are not scripts, use Execution::Call.
   // Depending on the script, the host_defined_options might not be used but the
   // caller has to provide it at all times.
@@ -42,14 +42,14 @@ class Execution final : public AllStatic {
       Isolate* isolate, DirectHandle<JSFunction> callable,
       DirectHandle<Object> receiver, DirectHandle<Object> host_defined_options,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> CallBuiltin(
       Isolate* isolate, DirectHandle<JSFunction> builtin,
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
 
   // Construct object from function, the caller supplies an array of
   // arguments.
@@ -57,22 +57,22 @@ class Execution final : public AllStatic {
       Isolate* isolate, DirectHandle<Object> constructor,
       base::Vector<const DirectHandle<Object>> args,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+          tainttracking::FrameType::kUnknownCApiNew);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
       Handle<JSFunction> constructor, int argc, Handle<Object> argv[],
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+          tainttracking::FrameType::kUnknownCApiNew);
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> New(
       Isolate* isolate, DirectHandle<Object> constructor,
       DirectHandle<Object> new_target,
       base::Vector<const DirectHandle<Object>> args,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+          tainttracking::FrameType::kUnknownCApiNew);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> New(
       Isolate* isolate, Handle<Object> constructor, Handle<Object> new_target,
       int argc, Handle<Object> argv[],
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+          tainttracking::FrameType::kUnknownCApiNew);
 
   // Call a function, just like Call(), but handle don't report exceptions
   // externally.
@@ -88,7 +88,7 @@ class Execution final : public AllStatic {
       MessageHandling message_handling,
       MaybeDirectHandle<Object>* exception_out,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
   // Same as Execute::TryCall but for scripts which need an explicit
   // host-defined options object. See Execution:CallScript
   V8_EXPORT_PRIVATE static MaybeDirectHandle<Object> TryCallScript(
@@ -96,13 +96,13 @@ class Execution final : public AllStatic {
       DirectHandle<Object> receiver,
       DirectHandle<FixedArray> host_defined_options,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
 
   // Convenience method for performing RunMicrotasks
   static MaybeDirectHandle<Object> TryRunMicrotasks(
       Isolate* isolate, MicrotaskQueue* microtask_queue,
       tainttracking::FrameType frametype =
-          tainttracking::FrameType::UNKNOWN_CAPI);
+          tainttracking::FrameType::kUnknownCApi);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Call a Wasm function identified by {wasm_call_target} through the

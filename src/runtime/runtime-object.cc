@@ -4,7 +4,7 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/arguments.h"
+#include "src/execution/arguments.h"
 #include "src/bootstrapper.h"
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"

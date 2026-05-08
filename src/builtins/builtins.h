@@ -430,8 +430,8 @@ class Builtins {
       DirectHandle<Object> receiver,
       base::Vector<const DirectHandle<Object>> args,
       DirectHandle<HeapObject> new_target,
-      tainttracking::FrameType frame_type =
-          tainttracking::FrameType::kUnknownExternal);
+      ::tainttracking::FrameType frame_type =
+          ::tainttracking::FrameType::kUnknownExternal);
 
   static void Generate_Adaptor(MacroAssembler* masm, int formal_parameter_count,
                                Address builtin_address);

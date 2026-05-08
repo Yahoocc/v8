@@ -29,13 +29,13 @@ template <typename sinkchar>
 void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
                                Tagged<FixedArray> fixed_array,
                                uint32_t array_length,
-                               tainttracking::TaintData* taint_sink);
+                               ::tainttracking::TaintData* taint_sink);
 
 template <typename sinkchar>
 void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
                                Tagged<FixedArray> fixed_array,
                                uint32_t array_length,
-                               tainttracking::TaintData* taint_sink);
+                               ::tainttracking::TaintData* taint_sink);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
@@ -69,7 +69,7 @@ inline void ReplacementStringBuilder::AddSubjectSlice(int from, int to) {
 
 template <typename SrcChar, typename DestChar>
 void IncrementalStringBuilder::Append(SrcChar c,
-                                      tainttracking::TaintType type) {
+                                      ::tainttracking::TaintType type) {
   USE(type);
   DCHECK_EQ(encoding_ == String::ONE_BYTE_ENCODING, sizeof(DestChar) == 1);
   if (sizeof(DestChar) == 1) {
@@ -114,7 +114,7 @@ V8_INLINE void IncrementalStringBuilder::AppendCStringLiteral(
 
 template <typename SrcChar>
 V8_INLINE void IncrementalStringBuilder::AppendCString(
-    const SrcChar* s, tainttracking::TaintType type) {
+    const SrcChar* s, ::tainttracking::TaintType type) {
   if (encoding_ == String::ONE_BYTE_ENCODING) {
     while (*s != '\0') Append<SrcChar, uint8_t>(*s++, type);
   } else {

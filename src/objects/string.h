@@ -906,6 +906,9 @@ V8_OBJECT class SeqOneByteString : public SeqString {
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
+  // Get taint tracking data for the string characters.
+  inline unsigned char* GetTaintChars();
+
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 
   // Initializes padding bytes. Potentially zeros tail of the payload too!
@@ -977,6 +980,9 @@ V8_OBJECT class SeqTwoByteString : public SeqString {
   inline base::uc16* GetChars(
       const DisallowGarbageCollection& no_gc,
       const SharedStringAccessGuardIfNeeded& access_guard);
+
+  // Get taint tracking data for the string characters.
+  inline unsigned char* GetTaintChars();
 
   DataAndPaddingSizes GetDataAndPaddingSizes() const;
 

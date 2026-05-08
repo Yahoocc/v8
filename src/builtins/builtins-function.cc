@@ -56,8 +56,8 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
                                    Object::ToString(isolate, args.at(i)));
         param = String::Flatten(isolate, param);
 
-        tainttracking::LogIfTainted(Handle<String>::cast(param),
-                                     tainttracking::TaintSinkLabel::JAVASCRIPT,
+        ::tainttracking::LogIfTainted(Cast<String>(param),
+                                     ::tainttracking::TaintSinkLabel::JAVASCRIPT,
                                      i - 1);
         builder.AppendString(param);
       }
@@ -71,8 +71,8 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
                                  Object::ToString(isolate, args.at(argc)));
 
  
-    tainttracking::LogIfTainted(Handle<String>::cast(body),
-              tainttracking::TaintSinkLabel::JAVASCRIPT,
+    ::tainttracking::LogIfTainted(Cast<String>(body),
+              ::tainttracking::TaintSinkLabel::JAVASCRIPT,
                     argc - 1);
 
       builder.AppendString(body);

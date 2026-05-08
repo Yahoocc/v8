@@ -1989,9 +1989,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
-  tainttracking::TaintTracker* taint_tracking_data() const {
-    return taint_tracking_data_.get();
-  }
 
   compiler::PerIsolateCompilerCache* compiler_cache() const {
     return compiler_cache_;

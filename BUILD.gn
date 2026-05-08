@@ -910,10 +910,16 @@ config("internal_config") {
   }
 
   # Taint tracking serialization depends on Cap'n Proto.
+  lib_dirs = [ "//build/linux/debian_bullseye_amd64-sysroot/usr/lib/x86_64-linux-gnu" ]
   libs += [
     "capnp",
     "kj",
   ]
+}
+
+config("capnp_config") {
+  # Cap'n Proto header files are now in the Chromium sysroot
+  # No additional flags needed
 }
 
 # Should be applied to all targets that write trace events.
@@ -1828,6 +1834,8 @@ config("toolchain") {
     # on non-standard-layout types is implementation defined (rather than UB),
     # and our supported compilers have the expected reasonable behaviour.
     "-Wno-invalid-offsetof",
+    # Disable macro redefinition warnings from system headers (stdint.h).
+    "-Wno-macro-redefined",
   ]
 
   if (!is_clang) {
@@ -5794,7 +5802,7 @@ action_foreach("taint_tracking_capnp") {
   args = [
     rebase_path("src/taint_tracking/protos", root_build_dir),
     rebase_path("$target_gen_dir/v8", root_build_dir),
-    rebase_path("{{source}}", root_build_dir),
+    rebase_path("{{source}}"),
   ]
 }
 
@@ -6799,9 +6807,10 @@ v8_cluster_source_set("v8_base_without_compiler") {
   configs = [
     ":internal_config",
     ":cppgc_base_config",
+    ":capnp_config",
   ]
 
-  deps = [
+  deps += [
     ":torque_generated_definitions",
     ":v8_bigint",
     ":v8_headers",

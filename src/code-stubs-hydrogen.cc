@@ -90,13 +90,13 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HValue* BuildToString(
       HValue* input,
       bool convert,
-      tainttracking::FrameType taint_tracking_hook =
-        tainttracking::FrameType::UNKNOWN_CAPI);
+      ::tainttracking::FrameType taint_tracking_hook =
+        ::tainttracking::FrameType::UNKNOWN_CAPI);
   HValue* BuildToPrimitive(
       HValue* input,
       HValue* input_map,
-      tainttracking::FrameType taint_tracking_hook =
-        tainttracking::FrameType::UNKNOWN_CAPI);
+      ::tainttracking::FrameType taint_tracking_hook =
+        ::tainttracking::FrameType::UNKNOWN_CAPI);
 
  private:
   std::unique_ptr<HParameter* []> parameters_;
@@ -1365,7 +1365,7 @@ Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
 
 
 HValue* CodeStubGraphBuilderBase::BuildToString(
-    HValue* input, bool convert, tainttracking::FrameType taint_tracking_hook) {
+    HValue* input, bool convert, ::tainttracking::FrameType taint_tracking_hook) {
   if (!convert) return BuildCheckString(input);
   IfBuilder if_inputissmi(this);
   HValue* inputissmi = if_inputissmi.If<HIsSmiAndBranch>(input);
@@ -1424,7 +1424,7 @@ HValue* CodeStubGraphBuilderBase::BuildToString(
 HValue* CodeStubGraphBuilderBase::BuildToPrimitive(
     HValue* input,
     HValue* input_map,
-    tainttracking::FrameType taint_tracking_hook) {
+    ::tainttracking::FrameType taint_tracking_hook) {
   // Get the native context of the caller.
   HValue* native_context = BuildGetNativeContext();
 
@@ -1495,7 +1495,7 @@ HValue* CodeStubGraphBuilderBase::BuildToPrimitive(
 
     int nargs = 1;
     Add<HPushArguments>(input);
-    if (taint_tracking_hook != tainttracking::FrameType::UNKNOWN_CAPI) {
+    if (taint_tracking_hook != ::tainttracking::FrameType::UNKNOWN_CAPI) {
       Add<HPushArguments>(
           Add<HConstant>(static_cast<int>(taint_tracking_hook)));
       nargs += 1;
@@ -1522,13 +1522,13 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
     left = BuildToString(
         left,
         (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT,
-        tainttracking::FrameType::TO_STRING_CONVERT_PLUS_LEFT);
+        ::tainttracking::FrameType::TO_STRING_CONVERT_PLUS_LEFT);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
     right = BuildToString(
         right,
         (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT,
-        tainttracking::FrameType::TO_STRING_CONVERT_PLUS_RIGHT);
+        ::tainttracking::FrameType::TO_STRING_CONVERT_PLUS_RIGHT);
   }
 
   return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));

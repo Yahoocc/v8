@@ -156,8 +156,8 @@ class AstNode: public ZoneObject {
   NodeType node_type() const { return NodeTypeField::decode(bit_field_); }
   int position() const { return position_; }
 
-  tainttracking::NodeLabel GetTaintTrackingLabel();
-  void SetTaintTrackingLabel(tainttracking::NodeLabel label);
+  ::tainttracking::NodeLabel GetTaintTrackingLabel();
+  void SetTaintTrackingLabel(::tainttracking::NodeLabel label);
 
 
 #ifdef DEBUG
@@ -179,6 +179,7 @@ class AstNode: public ZoneObject {
  private:
   int position_;
   using NodeTypeField = base::BitField<NodeType, 0, 6>;
+  ::tainttracking::NodeLabel taint_tracking_label_;
 
  protected:
   uint32_t bit_field_;

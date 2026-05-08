@@ -4,9 +4,9 @@
 
 #include "src/runtime/runtime-utils.h"
 
-#include "src/accessors.h"
-#include "src/arguments.h"
-#include "src/compiler.h"
+#include "src/builtins/accessors.h"
+#include "src/execution/arguments.h"
+#include "src/codegen/compiler.h"
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"

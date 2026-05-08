@@ -4,7 +4,7 @@
 
 #include "src/external-reference-table.h"
 
-#include "src/accessors.h"
+#include "src/builtins/accessors.h"
 #include "src/assembler.h"
 #include "src/builtins/builtins.h"
 #include "src/counters.h"
@@ -458,9 +458,9 @@ void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
 
 void ExternalReferenceTable::AddTaintTracking(Isolate* isolate) {
   Add(reinterpret_cast<Address>(
-          tainttracking::TaintTracker::FromIsolate(isolate)
+          ::tainttracking::TaintTracker::FromIsolate(isolate)
           ->symbolic_elem_counter()),
-      "tainttracking::symbolic_elem_counter");
+      "::tainttracking::symbolic_elem_counter");
 }
 
 }  // namespace internal
