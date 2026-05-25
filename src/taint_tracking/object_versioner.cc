@@ -1,6 +1,9 @@
 #include "src/taint_tracking/object_versioner.h"
 
 #include "src/taint_tracking-inl.h"
+#include "src/objects/dictionary-inl.h"
+#include "src/objects/hash-table-inl.h"
+#include "src/handles/maybe-handles-inl.h"
 
 using namespace v8::internal;
 
@@ -23,29 +26,27 @@ int TaggedObject::GetUniqueId() const { return unique_id_; }
 
 Handle<Object> TaggedObject::GetObj() const { return obj_; }
 
-RevisionDictionary::RevisionDictionary() : dict_() {}
+RevisionDictionary::RevisionDictionary() : dict_(), isolate_(nullptr) {}
 
 RevisionDictionary::RevisionDictionary(Handle<NameDictionary> dict)
-    : dict_(dict) {}
+    : dict_(dict), isolate_(nullptr) {}
 
 RevisionDictionary::RevisionDictionary(Isolate* isolate, int size)
-    : dict_(NameDictionary::New(isolate, size)) {}
+    : dict_(NameDictionary::New(isolate, size)), isolate_(isolate) {}
 
 MaybeHandle<Object> RevisionDictionary::Lookup(Handle<Name> key) {
-  if (dict_.is_null()) return MaybeHandle<Object>();
+  if (dict_.is_null() || !isolate_) return MaybeHandle<Object>();
 
-  Isolate* isolate = key->GetIsolate();
-  InternalIndex entry = dict_->FindEntry(isolate, key);
+  InternalIndex entry = dict_->FindEntry(isolate_, key);
   if (entry.is_not_found()) return MaybeHandle<Object>();
-  return handle(dict_->ValueAt(entry), isolate);
+  return MaybeHandle<Object>(dict_->ValueAt(entry), isolate_);
 }
 
 void RevisionDictionary::Put(Handle<Name> key, Handle<Object> value) {
-  if (dict_.is_null()) return;
-  Isolate* isolate = key->GetIsolate();
-  PropertyDetails details(PropertyKind::kData, NONE,
+  if (dict_.is_null() || !isolate_) return;
+  PropertyDetails details(PropertyKind::kData, PropertyAttributes::NONE,
                           PropertyConstness::kMutable);
-  dict_ = NameDictionary::Add(isolate, dict_, key, value, details)
+  dict_ = NameDictionary::Add(isolate_, dict_, key, value, details)
               .ToHandleChecked();
 }
 
@@ -78,7 +79,7 @@ ObjectVersioner::ObjectVersioner(Isolate* isolate)
 void ObjectVersioner::Init() {
   static const int kInitialObjectMapSize = 16;
   weak_object_map_.reset(new LiteralValueHolder(
-      WeakHashTable::New(isolate_, kInitialObjectMapSize), isolate_));
+      EphemeronHashTable::New(isolate_, kInitialObjectMapSize), isolate_));
 }
 
 void ObjectVersioner::OnSet(Handle<JSReceiver>, Handle<String>, Handle<Object>) {
@@ -99,42 +100,44 @@ ObjectSnapshot ObjectVersioner::TakeSnapshot(Handle<Object> target) {
 }
 
 void ObjectVersioner::PutInMap(Handle<HeapObject> target, int unique_id) {
-  Handle<WeakHashTable> old_table = GetTable();
-  Handle<WeakHashTable> new_table = WeakHashTable::Put(
-      old_table, target, handle(Smi::FromInt(unique_id), isolate_));
+  Handle<EphemeronHashTable> old_table = GetTable();
+  DirectHandle<Smi> smi_value(Smi::FromInt(unique_id), isolate_);
+  Handle<EphemeronHashTable> new_table = EphemeronHashTable::Put(
+      isolate_, old_table, target, smi_value);
 
   if (*new_table != *old_table) {
     weak_object_map_.reset(new LiteralValueHolder(new_table, isolate_));
   }
 }
 
-Handle<WeakHashTable> ObjectVersioner::GetTable() {
+Handle<EphemeronHashTable> ObjectVersioner::GetTable() {
   if (!weak_object_map_) Init();
-  return Handle<WeakHashTable>::cast(weak_object_map_->Get());
+  return Cast<EphemeronHashTable>(weak_object_map_->Get());
 }
 
 Status ObjectVersioner::MaybeSerialize(ObjectSnapshot target_snap,
                                        Ast::JsObjectValue::Builder builder,
                                        MessageHolder& holder) {
   Handle<Object> target = target_snap.GetObj();
-  DCHECK(target->IsHeapObject());
+  DCHECK((*target).IsHeapObject());
 
-  Handle<HeapObject> heap_target = Handle<HeapObject>::cast(target);
-  Handle<Object> lookup_val(handle(GetTable()->Lookup(heap_target), isolate_));
+  Handle<HeapObject> heap_target = Cast<HeapObject>(target);
+  Tagged<Object> lookup_result = GetTable()->Lookup(heap_target);
 
-  if (!lookup_val->IsTheHole(isolate_)) {
-    DCHECK(lookup_val->IsSmi());
-    builder.setUniqueId(Smi::ToInt(*lookup_val));
+  if (!IsTheHole(lookup_result, isolate_)) {
+    DCHECK(IsSmi(lookup_result));
+    builder.setUniqueId(Smi::ToInt(lookup_result));
     builder.getValue().setPreviouslySerialized();
     return Status::OK;
   }
 
   int new_id = ++unique_immutable_id_;
-  if (target->IsJSReceiver()) {
+  if (IsJSReceiver(*target)) {
     Status status = holder.WriteConcreteReceiverSlow(
-        builder, TaggedRevisedObject(Handle<JSReceiver>::cast(target), new_id,
+        builder, TaggedRevisedObject(Cast<JSReceiver>(target), new_id,
                                      target_snap.GetCurrentRevision(),
-                                     RevisionDictionary()));
+                                     RevisionDictionary()),
+        isolate_);
     if (status == Status::OK) {
       PutInMap(heap_target, new_id);
     }
@@ -143,7 +146,8 @@ Status ObjectVersioner::MaybeSerialize(ObjectSnapshot target_snap,
 
   Status status =
       holder.WriteConcreteImmutableObjectSlow(builder,
-                                              TaggedObject(target, new_id));
+                                              TaggedObject(target, new_id),
+                                              isolate_);
   if (status == Status::OK) {
     PutInMap(heap_target, new_id);
   }

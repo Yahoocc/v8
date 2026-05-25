@@ -35,10 +35,10 @@
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/deoptimize-reason.h"
-#include "src/isolate.h"
+#include "src/execution/isolate.h"
 #include "src/log.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"

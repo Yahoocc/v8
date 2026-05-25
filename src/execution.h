@@ -5,10 +5,26 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/base/atomicops.h"
-#include "src/handles.h"
-#include "src/utils.h"
+#include "src/base/macros.h"
+#include "src/handles/handles.h"
+#include "src/utils/utils.h"
+
+// Define deprecated macros for compatibility
+#ifndef MUST_USE_RESULT
+#define MUST_USE_RESULT [[nodiscard]]
+#endif
+
+#ifndef DISALLOW_COPY_AND_ASSIGN
+#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
+  TypeName(const TypeName&) = delete;      \
+  void operator=(const TypeName&) = delete
+#endif
+
+#ifndef V8_UINT64_C
+#define V8_UINT64_C(x) UINT64_C(x)
+#endif
 
 namespace v8 {
 namespace internal {
@@ -27,7 +43,7 @@ class Execution final : public AllStatic {
       Handle<Object> receiver,
       int argc,
       Handle<Object> argv[],
-      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::kUnknownCApi);
 
   // Construct object from function, the caller supplies an array of
   // arguments.
@@ -35,14 +51,14 @@ class Execution final : public AllStatic {
       Handle<JSFunction> constructor,
       int argc,
       Handle<Object> argv[],
-      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::kUnknownCApiNew);
   MUST_USE_RESULT static MaybeHandle<Object> New(
       Isolate* isolate,
       Handle<Object> constructor,
       Handle<Object> new_target,
       int argc,
       Handle<Object> argv[],
-      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::UNKNOWN_CAPI_NEW);
+      ::tainttracking::FrameType frametype = ::tainttracking::FrameType::kUnknownCApiNew);
 
   // Call a function, just like Call(), but make sure to silently catch
   // any thrown exceptions. The return value is either the result of
@@ -204,17 +220,17 @@ class StackGuard final {
     base::AtomicWord climit_;
 
     uintptr_t jslimit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&jslimit_));
+      return v8::base::bit_cast<uintptr_t>(base::Relaxed_Load(&jslimit_));
     }
     void set_jslimit(uintptr_t limit) {
-      return base::NoBarrier_Store(&jslimit_,
+      return base::Relaxed_Store(&jslimit_,
                                    static_cast<base::AtomicWord>(limit));
     }
     uintptr_t climit() {
-      return bit_cast<uintptr_t>(base::NoBarrier_Load(&climit_));
+      return v8::base::bit_cast<uintptr_t>(base::Relaxed_Load(&climit_));
     }
     void set_climit(uintptr_t limit) {
-      return base::NoBarrier_Store(&climit_,
+      return base::Relaxed_Store(&climit_,
                                    static_cast<base::AtomicWord>(limit));
     }
 

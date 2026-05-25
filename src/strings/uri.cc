@@ -193,7 +193,7 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
     auto result = isolate->factory()->NewStringFromOneByte(
         base::Vector<const uint8_t>(one_byte_buffer.data(),
                                     static_cast<int>(one_byte_buffer.size())));
-    tainttracking::CheckTaintDebug(result);
+    ::tainttracking::CheckTaintDebug(result);
     return result;
   }
 
@@ -213,7 +213,7 @@ MaybeDirectHandle<String> Uri::Decode(Isolate* isolate,
     CopyChars(chars, two_byte_buffer.data(), two_byte_buffer.size());
   }
 
-  tainttracking::CheckTaintDebug(result);
+  ::tainttracking::CheckTaintDebug(result);
   return result;
 }
 
@@ -411,7 +411,7 @@ MaybeDirectHandle<String> Uri::Encode(Isolate* isolate,
     case EncodeStatus::kSuccess: {
       auto result = isolate->factory()->NewStringFromOneByte(
           base::VectorOf(buffer));
-      tainttracking::CheckTaintDebug(result);
+      ::tainttracking::CheckTaintDebug(result);
       return result;
     }
     case EncodeStatus::kUriError:
@@ -608,7 +608,7 @@ MaybeDirectHandle<String> Uri::Escape(Isolate* isolate, Handle<String> string) {
   auto result = String::IsOneByteRepresentationUnderneath(*string)
                     ? EscapePrivate<uint8_t>(isolate, string)
                     : EscapePrivate<base::uc16>(isolate, string);
-  tainttracking::CheckTaintDebug(result);
+  ::tainttracking::CheckTaintDebug(result);
   return result;
 }
 
@@ -618,7 +618,7 @@ MaybeDirectHandle<String> Uri::Unescape(Isolate* isolate,
   auto result = String::IsOneByteRepresentationUnderneath(*string)
                     ? UnescapePrivate<uint8_t>(isolate, string)
                     : UnescapePrivate<base::uc16>(isolate, string);
-  tainttracking::CheckTaintDebug(result);
+  ::tainttracking::CheckTaintDebug(result);
   return result;
 }
 

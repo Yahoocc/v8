@@ -5,8 +5,8 @@
 #ifndef V8_API_ARGUMENTS_H_
 #define V8_API_ARGUMENTS_H_
 
-#include "src/api.h"
-#include "src/isolate.h"
+#include "src/api/api.h"
+#include "src/execution/isolate.h"
 
 namespace v8 {
 namespace internal {

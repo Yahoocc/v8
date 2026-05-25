@@ -7,7 +7,7 @@
 
 #include "include/v8.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/parsing/token.h"
 
 #include <fstream>
@@ -30,6 +30,8 @@ class AstSerializer;
 
 typedef v8::String::TaintSinkLabel TaintSinkLabel;
 typedef v8::String::TaintData TaintData;
+// TaintType is defined in src/common/globals.h as using TaintType = v8::String::TaintType
+// InstanceCounter is defined in src/common/globals.h
 const uint64_t NO_MESSAGE = -1;
 
 enum Status {
@@ -167,6 +169,10 @@ enum BranchType {
 typedef uint32_t TaintFlag;
 const TaintFlag kTaintFlagUntainted = 0;
 
+// TaintType constants for validation
+const uint8_t TAINT_TYPE_MASK = 0xFF;
+const TaintType MAX_TAINT_TYPE = static_cast<TaintType>(20); // CACHE_STORAGE
+
 
 std::string TaintTypeToString(TaintType type);
 std::string TaintFlagToString(TaintFlag flag);
@@ -220,29 +226,35 @@ const bool kTaintTrackingEnabled = true;
 
 // Functions for manipulating taint data
 template <class T>
-void InitTaintData(T* str, TaintType type = TaintType::UNTAINTED);
+void InitTaintData(v8::internal::Tagged<T> str, TaintType type = TaintType::UNTAINTED);
 
 template <> void InitTaintData<v8::internal::SeqOneByteString>(
-    v8::internal::SeqOneByteString* str, TaintType type);
+    v8::internal::Tagged<v8::internal::SeqOneByteString> str, TaintType type);
 template <> void InitTaintData<v8::internal::SeqTwoByteString>(
-    v8::internal::SeqTwoByteString* str, TaintType type);
+    v8::internal::Tagged<v8::internal::SeqTwoByteString> str, TaintType type);
 
 template <class T>
-void CopyOut(T* source, TaintData* dest, int offset, int len);
+void CopyOut(v8::internal::Tagged<T> source, TaintData* dest, int offset, int len);
 template <class T>
-void CopyIn(T* dest, TaintType source, int offset, int len);
+void CopyIn(v8::internal::Tagged<T> dest, TaintType source, int offset, int len);
 template <class T>
-void CopyIn(T* dest, const TaintData* source, int offset, int len);
+void CopyIn(v8::internal::Tagged<T> dest, const TaintData* source, int offset, int len);
 
 template <class T> void FlattenTaintData(
-    T* source, TaintData* dest, int from_offset, int from_len);
+    v8::internal::Tagged<T> source, TaintData* dest, int from_offset, int from_len);
 template <class T, class S>
-void FlattenTaint(S* source, T* dest, int from_offset, int from_len);
+void FlattenTaint(v8::internal::Tagged<S> source, v8::internal::Tagged<T> dest, int from_offset, int from_len);
+
+// Calculate the size needed to store taint data for a string of given length
+inline int SizeForTaint(int length) {
+  return length * sizeof(TaintData);
+}
 
 int64_t LogIfTainted(
-    v8::internal::Handle<v8::internal::String> str,
+    v8::internal::DirectHandle<v8::internal::String> str,
     v8::String::TaintSinkLabel label,
-    int symbolic_data);
+    int symbolic_data,
+    v8::internal::Isolate* isolate);
 
 template <typename Char>
 int64_t LogIfBufferTainted(TaintData* buffer,
@@ -256,39 +268,39 @@ void SetTaintOnObject(v8::internal::Handle<v8::internal::Object> obj,
                       TaintType type);
 
 template <class T>
-TaintType GetTaintStatusRange(T* source, size_t idx_start, size_t length);
-template <class T> TaintType GetTaintStatus(T* object, size_t idx);
-template <class T> void SetTaintStatus(T* object, size_t idx, TaintType type);
-template <class T> TaintData* GetWriteableStringTaintData(T* str);
+TaintType GetTaintStatusRange(v8::internal::Tagged<T> source, size_t idx_start, size_t length);
+template <class T> TaintType GetTaintStatus(v8::internal::Tagged<T> object, size_t idx);
+template <class T> void SetTaintStatus(v8::internal::Tagged<T> object, size_t idx, TaintType type);
+template <class T> TaintData* GetWriteableStringTaintData(v8::internal::Tagged<T> str);
 
 
 // Event listeners for New strings and operations
-template <class T> void OnNewStringLiteral(T* source);
-void OnNewDeserializedString(v8::internal::String* source);
-template <class T> void OnNewExternalString(T* str);
+template <class T> void OnNewStringLiteral(v8::internal::Tagged<T> source, v8::internal::Isolate* isolate);
+void OnNewDeserializedString(v8::internal::Tagged<v8::internal::String> source, v8::internal::Isolate* isolate);
+template <class T> void OnNewExternalString(v8::internal::Tagged<T> str, v8::internal::Isolate* isolate);
 template <class T, class S> void OnNewSubStringCopy(
-    T* source, S* dest, int offset, int length);
+    T* source, S* dest, int offset, int length, v8::internal::Isolate* isolate);
 template <class T, class S, class R> void OnNewConcatStringCopy(
-    T* dest, S* first, R* second);
+    T* dest, S* first, R* second, v8::internal::Isolate* isolate);
 void OnNewConsString(v8::internal::ConsString* target,
                      v8::internal::String* first,
-                     v8::internal::String* second);
+                     v8::internal::String* second, v8::internal::Isolate* isolate);
 void OnNewSlicedString(v8::internal::SlicedString* target,
                        v8::internal::String* first,
-                       int offset, int length);
+                       int offset, int length, v8::internal::Isolate* isolate);
 void OnNewFromJsonString(v8::internal::SeqString* target,
-                         v8::internal::String* source);
+                         v8::internal::String* source, v8::internal::Isolate* isolate);
 template <class T> void OnNewReplaceRegexpWithString(
     v8::internal::String* subject,
     T* result,
     v8::internal::JSRegExp* pattern,
-    v8::internal::String* replacement);
+    v8::internal::String* replacement, v8::internal::Isolate* isolate);
 template <class T, class Array> void OnJoinManyStrings(
-    T* target, Array* array);
+    T* target, Array* array, v8::internal::Isolate* isolate);
 template <class T> void OnConvertCase(
-    v8::internal::String* source, T* answer);
+    v8::internal::String* source, T* answer, v8::internal::Isolate* isolate);
 template <class T> void OnGenericOperation(
-    SymbolicType type, T* source);
+    SymbolicType type, v8::internal::Tagged<T> source, v8::internal::Isolate* isolate);
 
 
 // Opaque hash that signals a change in the memory layout format. Useful for
@@ -378,7 +390,7 @@ void RuntimeAddArgumentToStackFrame(
 
 void RuntimeAddLiteralArgumentToStackFrame(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> value);
+    v8::internal::DirectHandle<v8::internal::Object> value);
 
 v8::internal::Handle<v8::internal::Object> GetSymbolicArgument(
     v8::internal::Isolate* isolate, uint32_t i);
@@ -395,65 +407,65 @@ void InsertControlFlowHook(v8::internal::ParseInfo* info);
 
 void SetSymbolicReturnValue(
     v8::internal::Isolate*,
-    v8::internal::Handle<v8::internal::Object> object);
+    v8::internal::DirectHandle<v8::internal::Object> object);
 
 void RuntimeSetReturnValue(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> value,
+    v8::internal::DirectHandle<v8::internal::Object> value,
     v8::internal::MaybeHandle<v8::internal::Object> label);
 
 void RuntimeEnterTry(v8::internal::Isolate* isolate,
-                     v8::internal::Handle<v8::internal::Object> label);
+                     v8::internal::DirectHandle<v8::internal::Object> label);
 void RuntimeExitTry(v8::internal::Isolate* isolate,
-                    v8::internal::Handle<v8::internal::Object> label);
+                    v8::internal::DirectHandle<v8::internal::Object> label);
 void RuntimeOnThrow(v8::internal::Isolate* isolate,
-                    v8::internal::Handle<v8::internal::Object> exception,
+                    v8::internal::DirectHandle<v8::internal::Object> exception,
                     bool is_rethrow);
 void RuntimeOnCatch(v8::internal::Isolate* isolate,
-                    v8::internal::Handle<v8::internal::Object> thrown_object,
-                    v8::internal::Handle<v8::internal::Context> context);
+                    v8::internal::DirectHandle<v8::internal::Object> thrown_object,
+                    v8::internal::DirectHandle<v8::internal::Context> context);
 void RuntimeOnExitFinally(v8::internal::Isolate* isolate);
 
 void RuntimeSetReceiver(v8::internal::Isolate* isolate,
-                        v8::internal::Handle<v8::internal::Object> value,
-                        v8::internal::Handle<v8::internal::Object> label);
+                        v8::internal::DirectHandle<v8::internal::Object> value,
+                        v8::internal::DirectHandle<v8::internal::Object> label);
 
 
-v8::internal::Object* RuntimePrepareApplyFrame(
+v8::internal::Tagged<v8::internal::Object> RuntimePrepareApplyFrame(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> argument_list,
-    v8::internal::Handle<v8::internal::Object> target_fn,
-    v8::internal::Handle<v8::internal::Object> new_target,
-    v8::internal::Handle<v8::internal::Object> this_argument,
+    v8::internal::DirectHandle<v8::internal::Object> argument_list,
+    v8::internal::DirectHandle<v8::internal::Object> target_fn,
+    v8::internal::DirectHandle<v8::internal::Object> new_target,
+    v8::internal::DirectHandle<v8::internal::Object> this_argument,
     FrameType caller_frame_type);
 
-v8::internal::Object* RuntimePrepareCallFrame(
+v8::internal::Tagged<v8::internal::Object> RuntimePrepareCallFrame(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> target_fn,
+    v8::internal::DirectHandle<v8::internal::Object> target_fn,
     FrameType caller_frame_type,
-    v8::internal::Handle<v8::internal::FixedArray> args);
+    v8::internal::DirectHandle<v8::internal::FixedArray> args);
 
-v8::internal::Object* RuntimePrepareCallOrConstructFrame(
+v8::internal::Tagged<v8::internal::Object> RuntimePrepareCallOrConstructFrame(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> target_fn,
-    v8::internal::Handle<v8::internal::Object> new_target,
-    v8::internal::Handle<v8::internal::FixedArray> args);
+    v8::internal::DirectHandle<v8::internal::Object> target_fn,
+    v8::internal::DirectHandle<v8::internal::Object> new_target,
+    v8::internal::DirectHandle<v8::internal::FixedArray> args);
 
 void RuntimeSetLiteralReceiver(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> target_fn);
+    v8::internal::DirectHandle<v8::internal::Object> target_fn);
 
 void RuntimeCheckMessageOrigin(
     v8::internal::Isolate* isolate,
-    v8::internal::Handle<v8::internal::Object> left,
-    v8::internal::Handle<v8::internal::Object> right,
+    v8::internal::DirectHandle<v8::internal::Object> left,
+    v8::internal::DirectHandle<v8::internal::Object> right,
     v8::internal::Token::Value token);
 
 void RuntimeParameterToContextStorage(
     v8::internal::Isolate* isolate,
     int parameter_index,
     int context_slot_index,
-    v8::internal::Handle<v8::internal::Context> context);
+    v8::internal::DirectHandle<v8::internal::Context> context);
 
 
 } // namespace tainttracking

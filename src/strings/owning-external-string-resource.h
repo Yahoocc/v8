@@ -31,9 +31,7 @@ namespace v8::internal {
 
 template <typename CharT, typename StdCharT, typename FlatStringCharT,
           typename Base>
-class OwningExternalStringResourceImpl
-    : public Base,
-      public v8::String::TaintTrackingStringBufferImpl {
+class OwningExternalStringResourceImpl : public Base {
  public:
   static_assert(sizeof(CharT) == sizeof(StdCharT));
   static_assert(sizeof(CharT) == sizeof(FlatStringCharT));
@@ -51,7 +49,9 @@ class OwningExternalStringResourceImpl
     String::WriteToFlat(source,
                         reinterpret_cast<FlatStringCharT*>(storage_.get()), 0,
                         static_cast<uint32_t>(length_));
-    tainttracking::FlattenTaintData(source, InitTaintChars(length_), 0,
+    // Note: InitTaintChars is inherited from Base -> ExternalStringResourceBase -> TaintTrackingBase
+    // The default implementation returns nullptr, which is fine for now
+    ::tainttracking::FlattenTaintData(source, this->InitTaintChars(length_), 0,
                                     static_cast<int>(length_));
     SealIfSupported();
   }

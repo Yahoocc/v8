@@ -5050,7 +5050,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // Set up the call-as-function delegate.
     DirectHandle<JSFunction> delegate = SimpleCreateFunction(
         isolate_, factory->empty_string(),
-        Builtin::kHandleApiCallAsFunctionDelegate, 0, kDontAdapt);
+        Builtin::kHandleApiCallAsFunction, 0, kDontAdapt);
     native_context()->set_call_as_function_delegate(*delegate);
   }
 
@@ -5058,7 +5058,7 @@ void Genesis::InitializeGlobal(DirectHandle<JSGlobalObject> global_object,
     // Set up the call-as-constructor delegate.
     DirectHandle<JSFunction> delegate = SimpleCreateFunction(
         isolate_, factory->empty_string(),
-        Builtin::kHandleApiCallAsConstructorDelegate, 0, kDontAdapt);
+        Builtin::kHandleApiCallAsConstructor, 0, kDontAdapt);
     native_context()->set_call_as_constructor_delegate(*delegate);
   }
 }

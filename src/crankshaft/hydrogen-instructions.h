@@ -8,7 +8,7 @@
 #include <cstring>
 #include <iosfwd>
 
-#include "src/allocation.h"
+#include "src/utils/allocation.h"
 #include "src/base/bits.h"
 #include "src/bit-vector.h"
 #include "src/code-stubs.h"

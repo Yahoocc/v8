@@ -596,8 +596,15 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                     Handle<Object> receiver, int argc,
                                     Handle<Object> argv[],
                                     ::tainttracking::FrameType frametype) {
+  std::vector<DirectHandle<Object>> direct_argv;
+  direct_argv.reserve(argc);
+  for (int i = 0; i < argc; i++) {
+    direct_argv.push_back(DirectHandle<Object>(argv[i]));
+  }
   return Call(isolate, DirectHandle<Object>(callable),
-              DirectHandle<Object>(receiver), {argv, argc}, frametype);
+              DirectHandle<Object>(receiver),
+              base::Vector<const DirectHandle<Object>>(direct_argv.data(), argc),
+              frametype);
 }
 
 // static
@@ -637,8 +644,10 @@ MaybeDirectHandle<JSReceiver> Execution::New(
 MaybeHandle<Object> Execution::New(Handle<JSFunction> constructor, int argc,
                                    Handle<Object> argv[],
                                    ::tainttracking::FrameType frametype) {
+  Isolate* isolate;
+  GetIsolateFromHeapObject(Cast<HeapObject>(*constructor), &isolate);
   Handle<Object> constructor_object = constructor;
-  return New(constructor->GetIsolate(), constructor_object, constructor_object,
+  return New(isolate, constructor_object, constructor_object,
              argc, argv, frametype);
 }
 
@@ -658,8 +667,20 @@ MaybeHandle<Object> Execution::New(Isolate* isolate, Handle<Object> constructor,
                                    Handle<Object> new_target, int argc,
                                    Handle<Object> argv[],
                                    ::tainttracking::FrameType frametype) {
-  return New(isolate, DirectHandle<Object>(constructor),
-             DirectHandle<Object>(new_target), {argv, argc}, frametype);
+  std::vector<DirectHandle<Object>> direct_argv;
+  direct_argv.reserve(argc);
+  for (int i = 0; i < argc; i++) {
+    direct_argv.push_back(DirectHandle<Object>(argv[i]));
+  }
+  MaybeDirectHandle<JSReceiver> result = New(isolate, DirectHandle<Object>(constructor),
+             DirectHandle<Object>(new_target),
+             base::Vector<const DirectHandle<Object>>(direct_argv.data(), argc),
+             frametype);
+  DirectHandle<JSReceiver> receiver;
+  if (result.ToHandle(&receiver)) {
+    return Handle<Object>::New(*receiver, isolate);
+  }
+  return MaybeHandle<Object>();
 }
 
 // static

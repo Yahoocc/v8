@@ -27,6 +27,7 @@
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/serializer-deserializer.h"
 #include "src/snapshot/serializer-inl.h"
+#include "src/objects/objects.h"
 #include "src/taint_tracking.h"
 
 
@@ -732,7 +733,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   Tagged<Map> map;
   int content_size;
   int allocation_size;
-  int taint_size = tainttracking::SizeForTaint(length);
+  int taint_size = ::tainttracking::SizeForTaint(length);
   const uint8_t* resource;
   // Find the map and size for the imaginary sequential string.
   bool internalized = IsInternalizedString(*object_, cage_base);
@@ -772,9 +773,9 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Serialize string content.
   sink_->PutRaw(resource, content_size, "StringContent");
-  byte taint_data[taint_size];
-  tainttracking::FlattenTaintData(string, taint_data, 0, taint_size);
-  sink_->PutRaw(taint_data, taint_size, "StringTaint");
+  std::vector<uint8_t> taint_data(taint_size);
+  ::tainttracking::FlattenTaintData(string, taint_data.data(), 0, taint_size);
+  sink_->PutRaw(taint_data.data(), taint_size, "StringTaint");
   // Since the allocation size is rounded up to object alignment, there
   // maybe left-over bytes that need to be padded.
   size_t padding_size = allocation_size - sizeof(SeqString) - content_size;

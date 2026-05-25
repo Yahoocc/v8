@@ -929,7 +929,7 @@ void Parser::PostProcessParseResult(IsolateT* isolate, ParseInfo* info,
     }
   }
 
-  tainttracking::InsertControlFlowHook(info);
+  ::tainttracking::InsertControlFlowHook(info);
 }
 
 template void Parser::PostProcessParseResult(Isolate* isolate, ParseInfo* info,

@@ -6,7 +6,7 @@
 // symbolic execution.
 
 
-#include "src/global-handles.h"
+#include "src/handles/global-handles.h"
 #include "src/taint_tracking.h"
 
 #include "v8/ast.capnp.h"

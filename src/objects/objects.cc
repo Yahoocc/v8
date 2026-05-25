@@ -1626,7 +1626,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithAccessor(LookupIterator* it) {
     return Cast<JSAny>(Builtins::InvokeApiFunction(
         isolate, false, Cast<FunctionTemplateInfo>(getter), receiver, {},
         isolate->factory()->undefined_value(),
-        tainttracking::FrameType::kGetterAccessor));
+        ::tainttracking::FrameType::kGetterAccessor));
   } else if (IsCallable(*getter)) {
     // TODO(rossberg): nicer would be to cast to some JSCallable here...
     return Object::GetPropertyWithDefinedGetter(receiver,
@@ -1693,7 +1693,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
         Builtins::InvokeApiFunction(
             isolate, false, Cast<FunctionTemplateInfo>(setter), receiver,
             base::VectorOf(args), isolate->factory()->undefined_value(),
-            tainttracking::FrameType::kSetterAccessor),
+            ::tainttracking::FrameType::kSetterAccessor),
         Nothing<bool>());
     return Just(true);
   } else if (IsCallable(*setter)) {
@@ -1726,7 +1726,7 @@ MaybeHandle<JSAny> Object::GetPropertyWithDefinedGetter(
   }
 
   return Cast<JSAny>(Execution::Call(isolate, getter, receiver, {},
-                                     tainttracking::FrameType::kGetterAccessor));
+                                     ::tainttracking::FrameType::kGetterAccessor));
 }
 
 Maybe<bool> Object::SetPropertyWithDefinedSetter(
@@ -1738,7 +1738,7 @@ Maybe<bool> Object::SetPropertyWithDefinedSetter(
   RETURN_ON_EXCEPTION_VALUE(
       isolate,
       Execution::Call(isolate, setter, receiver, base::VectorOf(args),
-                      tainttracking::FrameType::kSetterAccessor),
+                      ::tainttracking::FrameType::kSetterAccessor),
       Nothing<bool>());
   return Just(true);
 }

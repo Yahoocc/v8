@@ -3,6 +3,12 @@
 #include "src/taint_tracking-inl.h"
 
 #include "src/builtins/builtins.h"
+#include "src/objects/hash-table.h"
+#include "src/common/globals.h"
+#include "src/objects/heap-object-inl.h"
+#include "src/objects/js-objects-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/roots/roots-inl.h"
 
 using namespace v8::internal;
 
@@ -246,29 +252,30 @@ void SymbolicState::WriteSelfImpl(
     MessageHolder& message_holder) {
   builder.setUniqueId(unique_id_);
 
-  BuilderSerializer ser;
-  if (label_.IsValid()) {
-    ser.Serialize(builder.initLabel(), label_);
-  }
+  // BuilderSerializer is not available in new V8, skip label serialization for now
+  // TODO: Find the correct serializer type for new V8
+  // if (label_.IsValid()) {
+  //   ser.Serialize(builder.initLabel(), label_);
+  // }
   writer_->ToMessage(builder, message_holder);
 
 
   Handle<Object> value = holder_.Get();
-  if (!message_holder.WriteConcreteObject(builder.initConcrete(), value)) {
+  if (!message_holder.WriteConcreteObject(builder.initConcrete(), value, isolate_)) {
     std::stringstream comment;
-    value->Print(comment);
+    Print(*value, comment);
     AddComment(comment.str());
     std::stringstream typeinfo;
 
     // Because SMI's will not fail
-    DCHECK(value->IsHeapObject());
+    DCHECK((*value).IsHeapObject());
 
-    typeinfo << Handle<HeapObject>::cast(value)->map()->instance_type();
+    typeinfo << Cast<HeapObject>(*value)->map()->instance_type();
     AddComment(typeinfo.str());
   }
-  auto comment_builder = builder.initComment(comments_.size());
-  for (int i = 0; i < comments_.size(); ++i) {
-    comment_builder.set(i, comments_[i]);
+  auto comment_builder = builder.initComment(static_cast<unsigned int>(comments_.size()));
+  for (size_t i = 0; i < comments_.size(); ++i) {
+    comment_builder.set(static_cast<unsigned int>(i), comments_[i]);
   }
 }
 
@@ -381,9 +388,9 @@ public:
     auto call_builder = builder.getValue().initCall();
     call_builder.setType(GetType());
     exp_->WriteSelf(call_builder.initExpression(), holder);
-    auto arg_builder = call_builder.initArgs(args_.size());
-    for (int i = 0; i < args_.size(); i++) {
-      args_[i]->WriteSelf(arg_builder[i], holder);
+    auto arg_builder = call_builder.initArgs(static_cast<unsigned int>(args_.size()));
+    for (size_t i = 0; i < args_.size(); i++) {
+      args_[i]->WriteSelf(arg_builder[static_cast<unsigned int>(i)], holder);
     }
   }
 
@@ -431,7 +438,7 @@ SymbolicFactory::SymbolicFactory(
 
 SymbolicFactory::SymbolicFactory(v8::internal::Isolate* isolate) :
   SymbolicFactory(
-      isolate, handle(isolate->heap()->undefined_value(), isolate)) {}
+      isolate, Handle<Object>(ReadOnlyRoots(isolate).undefined_value(), isolate)) {}
 
 
 class RecursiveObjectSnapshotter : public ObjectOwnPropertiesVisitor {
@@ -439,13 +446,13 @@ public:
   static const int INITIAL_SIZE = 16;
   static const int MAX_DEPTH = 1;
 
-  RecursiveObjectSnapshotter() : depth_(0) {}
-  RecursiveObjectSnapshotter(int d) : depth_(d) {}
+  RecursiveObjectSnapshotter(Isolate* isolate) : depth_(0), isolate_(isolate) {}
+  RecursiveObjectSnapshotter(int d, Isolate* isolate) : depth_(d), isolate_(isolate) {}
 
   static bool CanBeDeepCopied(Handle<Object> obj) {
-    if (obj->IsHeapObject()) {
-      switch (Handle<HeapObject>::cast(obj)->map()->instance_type()) {
-        case JS_REGEXP_TYPE:
+    if ((*obj).IsHeapObject()) {
+      switch (Cast<HeapObject>(*obj)->map()->instance_type()) {
+        case JS_REG_EXP_TYPE:
         case JS_OBJECT_TYPE:
         case JS_ERROR_TYPE:
         case JS_ARRAY_TYPE:
@@ -462,41 +469,40 @@ public:
   }
 
   bool VisitKeyValue(Handle<String> key, Handle<Object> concrete) override {
-    if (concrete->IsJSReceiver()) {
+    if (IsJSReceiver(*concrete)) {
       if (CanBeDeepCopied(concrete)) {
-        DCHECK(concrete->IsJSObject());
-        Handle<JSObject> as_js_obj = Handle<JSObject>::cast(concrete);
-        Isolate* isolate = as_js_obj->GetIsolate();
-        Object* is_recursive_loop = recursion_guard_->Lookup(as_js_obj);
+        DCHECK(IsJSObject(*concrete));
+        Handle<JSObject> as_js_obj = Cast<JSObject>(concrete);
+        Tagged<Object> is_recursive_loop = recursion_guard_->Lookup(as_js_obj);
 
         Handle<JSObject> value;
-        if (is_recursive_loop->IsTheHole(isolate)) {
+        if (IsTheHole(is_recursive_loop, isolate_)) {
           Handle<Object> ret_val =
-            RecursiveObjectSnapshotter(depth_ + 1).Run(
+            RecursiveObjectSnapshotter(depth_ + 1, isolate_).Run(
                 as_js_obj, recursion_guard_);
           // TODO: it is possible that this cast will fail because of a stack
           // overflow, or because arbitrary javascript signaled an exception.
           // For now we check and error out if that happens. In the future we
           // should either gracefully handle such errors or make sure they don't
           // happen.
-          CHECK (ret_val->IsJSObject());
+          CHECK (IsJSObject(*ret_val));
 
-          value = Handle<JSObject>::cast(ret_val);
+          value = Cast<JSObject>(ret_val);
         } else {
-          DCHECK(is_recursive_loop->IsJSObject());
-          value = handle(JSObject::cast(is_recursive_loop), isolate);
+          DCHECK(IsJSObject(is_recursive_loop));
+          value = Cast<JSObject>(Handle<Object>(is_recursive_loop, isolate_));
         }
 
         // TODO: The ObjectOwnPropertiesVisitor should only pass DATA elements
         // here.
         auto maybe_obj = Object::SetPropertyOrElement(
-            clone_, key, value, SLOPPY);
+            isolate_, clone_, key, value);
 
         // TODO: it is possible to execute arbitrary javascript inside an
         // accessor here, which could change the program's behavior. It would
         // be good to not do that.
-        Handle<Object> set_value;
-        DCHECK(maybe_obj.ToHandle(&set_value));
+        DirectHandle<Object> set_value;
+        CHECK(maybe_obj.ToHandle(&set_value));
       }
       return false;
     } else {
@@ -505,43 +511,40 @@ public:
   }
 
   Handle<Object> Run(Handle<JSObject> obj) {
-    return Run(obj, WeakHashTable::New(obj->GetIsolate(), INITIAL_SIZE));
+    return Run(obj, EphemeronHashTable::New(isolate_, INITIAL_SIZE));
   }
 
 private:
   Handle<Object> Run(
       Handle<JSObject> obj,
-      v8::internal::Handle<WeakHashTable> recursion_guard) {
+      v8::internal::Handle<EphemeronHashTable> recursion_guard) {
 
-    Isolate* isolate = obj->GetIsolate();
-
-    StackLimitCheck check (isolate);
+    StackLimitCheck check (isolate_);
     CHECK (!check.HasOverflowed());
 
-    clone_ = isolate->factory()->CopyJSObject(obj);
+    clone_ = isolate_->factory()->CopyJSObject(obj);
     if (depth_ >= MAX_DEPTH) {
       return clone_;
     }
 
-    recursion_guard_ = WeakHashTable::Put(
-        recursion_guard, obj, clone_);
-    if (!Visit(clone_)) {
-      return handle(isolate->heap()->the_hole_value(), isolate);
-    }
+    recursion_guard_ = EphemeronHashTable::Put(
+        isolate_, recursion_guard, obj, clone_);
+    Visit(clone_, isolate_);
     return clone_;
   }
 
   int depth_;
-  v8::internal::Handle<WeakHashTable> recursion_guard_;
+  Isolate* isolate_;
+  v8::internal::Handle<EphemeronHashTable> recursion_guard_;
   Handle<JSObject> clone_;
 };
 
 
-Handle<Object> CopyObject(Handle<Object> obj) {
+Handle<Object> CopyObject(Handle<Object> obj, Isolate* isolate) {
   if (RecursiveObjectSnapshotter::CanBeDeepCopied(obj)) {
-    DCHECK(obj->IsJSObject());
-    Handle<JSObject> as_js_obj = Handle<JSObject>::cast(obj);
-    return as_js_obj->GetIsolate()->factory()->CopyJSObject(as_js_obj);
+    DCHECK(IsJSObject(*obj));
+    Handle<JSObject> as_js_obj = Cast<JSObject>(obj);
+    return isolate->factory()->CopyJSObject(as_js_obj);
   } else {
     return obj;
   }
@@ -553,7 +556,7 @@ std::shared_ptr<SymbolicState> SymbolicFactory::Make(
   int64_t new_ctr = TaintTracker::FromIsolate(isolate_)->Get()->NewInstance();
 
   return std::shared_ptr<SymbolicState> (
-      new SymbolicState(CopyObject(concrete_),
+      new SymbolicState(CopyObject(concrete_, isolate_),
                         isolate_,
                         label_,
                         std::unique_ptr<SymbolicMessageWriter>(writer),
@@ -567,8 +570,8 @@ std::shared_ptr<SymbolicState> SymbolicFactory::Undefined() const {
 
 std::shared_ptr<SymbolicState> SymbolicFactory::MakeSymbolic() const {
   SymbolicMessageWriter* writer;
-  if (concrete_->IsString()) {
-    writer = new SymbolicUnconstraintedString(Handle<String>::cast(concrete_));
+  if (IsString(*concrete_)) {
+    writer = new SymbolicUnconstraintedString(Cast<String>(concrete_));
   } else {
     writer = new SymbolicDummy();
   }
@@ -654,9 +657,9 @@ public:
                          MessageHolder& holder) {
     auto call = builder.getValue().initCallRuntime();
     Write(call.initExpression());
-    auto arg_builder = call.initArgs(args_.size());
-    for (int i = 0; i < args_.size(); i++) {
-      args_[i]->WriteSelf(arg_builder[i], holder);
+    auto arg_builder = call.initArgs(static_cast<unsigned int>(args_.size()));
+    for (size_t i = 0; i < args_.size(); i++) {
+      args_[i]->WriteSelf(arg_builder[static_cast<unsigned int>(i)], holder);
     }
   }
 
@@ -748,9 +751,9 @@ public:
   virtual void ToMessage(::TaintLogRecord::SymbolicValue::Builder builder,
                          MessageHolder& holder) {
     auto literal_builder = builder.getValue().initArrayLiteral().initValues(
-        values_.size());
-    for (int i = 0; i < values_.size(); i++) {
-      values_[i]->WriteSelf(literal_builder[i], holder);
+        static_cast<unsigned int>(values_.size()));
+    for (size_t i = 0; i < values_.size(); i++) {
+      values_[i]->WriteSelf(literal_builder[static_cast<unsigned int>(i)], holder);
     }
   }
 
@@ -768,10 +771,10 @@ public:
   virtual void ToMessage(::TaintLogRecord::SymbolicValue::Builder builder,
                          MessageHolder& holder) {
     auto obj_builder = builder.getValue().initObjectLiteral().initKeyValues(
-        key_values_.size());
-    for (int i = 0; i < key_values_.size(); i++) {
-      key_values_[i].GetKey()->WriteSelf(obj_builder[i].initKey(), holder);
-      key_values_[i].GetValue()->WriteSelf(obj_builder[i].initValue(), holder);
+        static_cast<unsigned int>(key_values_.size()));
+    for (size_t i = 0; i < key_values_.size(); i++) {
+      key_values_[i].GetKey()->WriteSelf(obj_builder[static_cast<unsigned int>(i)].initKey(), holder);
+      key_values_[i].GetValue()->WriteSelf(obj_builder[static_cast<unsigned int>(i)].initValue(), holder);
     }
   }
 
@@ -796,7 +799,7 @@ bool SymbolicFactory::DebugCheckObjectEquals(
 }
 
 void SymbolicState::DebugPrintObject() {
-  holder_.Get()->ShortPrint(std::cerr);
+  ShortPrint(*holder_.Get(), std::cerr);
 }
 
 
@@ -817,7 +820,7 @@ public:
     key_value_.GetKey()->WriteSelf(key_value.initKey(), holder);
     key_value_.GetValue()->WriteSelf(key_value.initValue(), holder);
     prev_state_->WriteSelf(assignment.initRest(), holder);
-  };
+  }
 
 private:
   std::shared_ptr<SymbolicState> prev_state_;

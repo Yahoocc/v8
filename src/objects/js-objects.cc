@@ -2169,7 +2169,7 @@ template <template <typename> typename HandleType>
       std::is_convertible_v<HandleType<JSReceiver>, DirectHandle<JSReceiver>>)
 typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
     Isolate* isolate, HandleType<JSReceiver> receiver, ToPrimitiveHint hint,
-    tainttracking::FrameType frame_type) {
+    ::tainttracking::FrameType frame_type) {
   DirectHandle<Object> exotic_to_prim;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, exotic_to_prim,
@@ -2195,10 +2195,10 @@ typename HandleType<Object>::MaybeType JSReceiver::ToPrimitive(
 
 template MaybeDirectHandle<Object> JSReceiver::ToPrimitive(
     Isolate* isolate, DirectHandle<JSReceiver> receiver, ToPrimitiveHint hint,
-    tainttracking::FrameType frame_type);
+    ::tainttracking::FrameType frame_type);
 template MaybeIndirectHandle<Object> JSReceiver::ToPrimitive(
     Isolate* isolate, IndirectHandle<JSReceiver> receiver,
-    ToPrimitiveHint hint, tainttracking::FrameType frame_type);
+    ToPrimitiveHint hint, ::tainttracking::FrameType frame_type);
 
 // static
 template <template <typename> typename HandleType>

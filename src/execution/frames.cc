@@ -4052,7 +4052,7 @@ StackFrame::TaintStackFrameInfo JavaScriptFrame::InfoForTaintLog() {
 
   int position = this->position();
   if (position == kNoSourcePosition) {
-    position = shared->start_position();
+    position = shared->StartPosition();
     answer.ast_taint_tracking_index = TaintStackFrameInfo::NO_SOURCE_INFO;
   } else {
     answer.ast_taint_tracking_index = TaintStackFrameInfo::SOURCE_POS_DEFAULT;

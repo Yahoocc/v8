@@ -4246,6 +4246,28 @@ DEFINE_BOOL(taint_tracking_enable_page_logging, false,
             "Enable logging of page bodies.")
 DEFINE_BOOL(taint_tracking_enable_symbolic, false,
             "Enable symbolic logging.")
+DEFINE_BOOL(taint_tracking_disable_code_caching, false,
+            "Disable code caching for taint tracking.")
+DEFINE_BOOL(taint_tracking_enable_ast_modification, false,
+            "Enable AST modification for taint tracking.")
+DEFINE_BOOL(taint_tracking_enable_concolic, false,
+            "Enable concolic execution for taint tracking.")
+DEFINE_BOOL(taint_tracking_enable_concolic_hooks_only, false,
+            "Enable concolic hooks only mode.")
+DEFINE_BOOL(taint_tracking_enable_concolic_no_marshalling, false,
+            "Enable concolic execution without marshalling.")
+DEFINE_BOOL(taint_tracking_enable_export_ast, false,
+            "Enable AST export for taint tracking.")
+DEFINE_BOOL(taint_tracking_enable_source_export, false,
+            "Enable source code export for taint tracking.")
+DEFINE_BOOL(taint_tracking_enable_source_hash_export, false,
+            "Enable source hash export for taint tracking.")
+DEFINE_INT(taint_tracking_heart_beat_millis, 0,
+           "Heart beat interval in milliseconds for taint tracking.")
+DEFINE_BOOL(taint_tracking_sources_sinks_to_logs, false,
+            "Log taint sources and sinks.")
+DEFINE_BOOL(taint_tracking_write_packed_logs, false,
+            "Write packed logs for taint tracking.")
 
 // Cleanup...
 #undef FLAG_FULL

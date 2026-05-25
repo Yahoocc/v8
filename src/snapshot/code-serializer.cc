@@ -747,7 +747,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<uint8_t>* payload,
   // Set header values.
   SetMagicNumber();
   SetHeaderValue(kVersionHashOffset,
-                   Version::Hash() ^ tainttracking::LayoutVersionHash());
+                   Version::Hash() ^ ::tainttracking::LayoutVersionHash());
   SetHeaderValue(kSourceHashOffset, cs->source_hash());
   SetHeaderValue(kFlagHashOffset, FlagList::Hash());
   SetHeaderValue(kReadOnlySnapshotChecksumOffset,

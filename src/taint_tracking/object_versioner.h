@@ -3,7 +3,9 @@
 
 #include <memory>
 
-#include "src/objects.h"
+#include "src/objects/dictionary.h"
+#include "src/objects/hash-table.h"
+#include "src/objects/objects.h"
 #include "src/taint_tracking/symbolic_state.h"
 
 namespace tainttracking {
@@ -51,7 +53,7 @@ class ObjectVersioner {
  private:
   void PutInMap(v8::internal::Handle<v8::internal::HeapObject> target,
                 int unique_id);
-  v8::internal::Handle<v8::internal::WeakHashTable> GetTable();
+  v8::internal::Handle<v8::internal::EphemeronHashTable> GetTable();
 
   std::unique_ptr<LiteralValueHolder> weak_object_map_;
   int current_version_;

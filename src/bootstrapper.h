@@ -5,7 +5,7 @@
 #ifndef V8_BOOTSTRAPPER_H_
 #define V8_BOOTSTRAPPER_H_
 
-#include "src/factory.h"
+#include "src/heap/factory.h"
 
 namespace v8 {
 namespace internal {

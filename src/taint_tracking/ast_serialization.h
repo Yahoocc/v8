@@ -15,8 +15,11 @@
 //   already implemented in ast_serialization.cc, and track the larger
 //   concolic API gap in the porting ledger.
 
+#include <vector>
+
 #include "src/ast/ast.h"
 #include "src/execution/isolate.h"
+#include "src/objects/js-objects.h"
 #include "v8/ast.capnp.h"
 
 namespace tainttracking {
@@ -26,6 +29,28 @@ namespace tainttracking {
 // symbolic-execution pipeline is forward-ported.
 bool SerializeAst(v8::internal::FunctionLiteral* ast, ::Ast::Builder* message,
                   v8::internal::Isolate* isolate);
+
+class ObjectOwnPropertiesVisitor {
+ public:
+  void Visit(v8::internal::Handle<v8::internal::JSReceiver> receiver,
+             v8::internal::Isolate* isolate);
+
+  // Returns true to visit value recursively
+  virtual bool VisitKeyValue(
+      v8::internal::Handle<v8::internal::String> key,
+      v8::internal::Handle<v8::internal::Object> value) = 0;
+
+ protected:
+  ObjectOwnPropertiesVisitor() {}
+
+ private:
+  void ProcessReceiver(
+      v8::internal::Handle<v8::internal::JSReceiver> receiver,
+      v8::internal::Isolate* isolate);
+
+  std::vector<v8::internal::Handle<v8::internal::JSReceiver>> value_stack_;
+  v8::internal::Isolate* isolate_;
+};
 
 }  // namespace tainttracking
 

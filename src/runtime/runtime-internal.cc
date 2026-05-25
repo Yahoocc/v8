@@ -713,7 +713,7 @@ RUNTIME_FUNCTION(Runtime_TaintTrackingHook) {
   DirectHandle<Object> label = args.at(1);
   DirectHandle<Smi> checktype = args.at<Smi>(2);
 
-  tainttracking::RuntimeHook(isolate, target, label, checktype->value());
+  ::tainttracking::RuntimeHook(isolate, Handle<Object>(*target, isolate), Handle<Object>(*label, isolate), (*checktype).value());
   return *target;
 }
 

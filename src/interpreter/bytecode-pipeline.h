@@ -8,7 +8,7 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/objects.h"
+#include "src/objects/objects.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

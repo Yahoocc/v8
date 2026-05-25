@@ -36,7 +36,7 @@
 
 #include <math.h>
 #include <cmath>
-#include "src/api.h"
+#include "src/api/api.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
 #include "src/base/ieee754.h"

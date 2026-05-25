@@ -33,7 +33,8 @@
 
 namespace tainttracking {
 
-struct InstanceCounter;
+// InstanceCounter is defined as a simple integer type for taint tracking
+typedef int InstanceCounter;
 
 // Legacy NDSS taint-tracking frame tags. These are kept in a neutral shared
 // header because the original patch threaded them through execution, builtins,
@@ -69,13 +70,38 @@ constexpr FrameType kFirstFrameTypeNeedingAutoExit =
 constexpr FrameType kLastFrameTypeNeedingAutoExit =
     FrameType::kBuiltinInvokeFunctionCode;
 
-// Legacy NDSS taint-tracking string metadata placeholders. Upstream V8 no
-// longer carries the old per-character taint runtime, but keeping these
-// neutral no-op shims in a shared moved-file header lets forward-ported hunks
-// land on modern paths without dragging the full runtime back in all at once.
+// Taint tracking types from NDSS patch
 enum class TaintType : uint8_t {
   UNTAINTED = 0,
   TAINTED = 1,
+  COOKIE = 2,
+  MESSAGE = 3,
+  URL = 4,
+  URL_HASH = 5,
+  URL_PROTOCOL = 6,
+  URL_HOST = 7,
+  URL_HOSTNAME = 8,
+  URL_ORIGIN = 9,
+  URL_PORT = 10,
+  URL_PATHNAME = 11,
+  URL_SEARCH = 12,
+  DOM = 13,
+  REFERRER = 14,
+  WINDOWNAME = 15,
+  STORAGE = 16,
+  NETWORK = 17,
+  MULTIPLE_TAINTS = 18,
+  MESSAGE_ORIGIN = 19,
+  MAX_TAINT_TYPE = 19,
+
+  // Encoding types (use bit shifting, not consecutive values)
+  URL_ENCODED = 32,            // 1 << 5
+  URL_COMPONENT_ENCODED = 64,  // 2 << 5
+  ESCAPE_ENCODED = 96,         // 3 << 5
+  MULTIPLE_ENCODINGS = 128,    // 4 << 5
+  URL_DECODED = 160,           // 5 << 5
+  URL_COMPONENT_DECODED = 192, // 6 << 5
+  ESCAPE_DECODED = 224         // 7 << 5
 };
 
 using TaintData = uint8_t;

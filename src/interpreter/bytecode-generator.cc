@@ -4143,7 +4143,7 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (execution_result()->IsEffect()) {
-    GenerateTaintTrackingHook(tainttracking::ValueState::OPTIMIZED_OUT, expr);
+    GenerateTaintTrackingHook(::tainttracking::ValueState::OPTIMIZED_OUT, expr);
     return;
   }
   switch (expr->type()) {
@@ -6474,7 +6474,7 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* property) {
     case NON_PROPERTY:
       UNREACHABLE();
     case NAMED_PROPERTY: {
-      GenerateTaintTrackingHook(tainttracking::ValueState::STATIC_VALUE,
+      GenerateTaintTrackingHook(::tainttracking::ValueState::STATIC_VALUE,
                                 property->key());
       builder()->SetExpressionPosition(property);
       const AstRawString* name =
@@ -9088,63 +9088,65 @@ int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
   return FeedbackVector::GetIndex(slot);
 }
 
-tainttracking::Status BytecodeGenerator::GenerateTaintTrackingHookPrepare(
+::tainttracking::Status BytecodeGenerator::GenerateTaintTrackingHookPrepare(
     AstNode* node, Handle<Object>* label) {
-  if (!local_isolate_->is_main_thread()) return tainttracking::Status::FAILURE;
+  if (!local_isolate_->is_main_thread()) return ::tainttracking::Status::FAILURE;
 
   Isolate* isolate = local_isolate_->AsIsolate();
-  if (!tainttracking::TaintTracker::FromIsolate(isolate)->IsRewriteAstEnabled()) {
-    return tainttracking::Status::FAILURE;
+  if (!::tainttracking::TaintTracker::FromIsolate(isolate)->IsRewriteAstEnabled()) {
+    return ::tainttracking::Status::FAILURE;
   }
 
   return node_serializer_.Serialize(label, node->GetTaintTrackingLabel());
 }
 
 void BytecodeGenerator::GenerateTaintTrackingHookBody(
-    AstNode* node, tainttracking::CheckType type) {
+    AstNode* node, ::tainttracking::CheckType type) {
   Handle<Object> label_value;
   if (GenerateTaintTrackingHookPrepare(node, &label_value) ==
-      tainttracking::Status::FAILURE) {
+      ::tainttracking::Status::FAILURE) {
     return;
   }
 
   RegisterAllocationScope register_scope(this);
-  register_allocator()->PrepareForConsecutiveAllocations(
-      tainttracking::kRuntimeOnControlFlowExpArgs);
 
-  Register first_arg = register_allocator()->NextConsecutiveRegister();
-  builder()->StoreAccumulatorInRegister(first_arg);
-  Register label_arg = register_allocator()->NextConsecutiveRegister();
+  // Allocate registers for the runtime call arguments
+  RegisterList args = register_allocator()->NewRegisterList(::tainttracking::kRuntimeOnControlFlowExpArgs);
+
+  // Store the accumulator in the first argument register
+  builder()->StoreAccumulatorInRegister(args[0]);
+
+  // Load and store the label constant in the second argument register
   size_t label_entry = builder()->AllocateDeferredConstantPoolEntry();
   builder()->SetDeferredConstantPoolEntry(label_entry, label_value);
   builder()->LoadConstantPoolEntry(label_entry);
-  builder()->StoreAccumulatorInRegister(label_arg);
-  Register check_type_arg = register_allocator()->NextConsecutiveRegister();
+  builder()->StoreAccumulatorInRegister(args[1]);
+
+  // Load and store the check type in the third argument register
   builder()->LoadLiteral(Smi::FromInt(type));
-  builder()->StoreAccumulatorInRegister(check_type_arg);
+  builder()->StoreAccumulatorInRegister(args[2]);
 
   EffectResultScope effect_scope(this);
-  builder()->CallRuntime(Runtime::kTaintTrackingHook, first_arg,
-                         tainttracking::kRuntimeOnControlFlowExpArgs);
+  builder()->CallRuntime(Runtime::kTaintTrackingHook, args);
 }
 
 void BytecodeGenerator::GenerateTaintTrackingHook(AstNode* node) {
   GenerateTaintTrackingHookBody(node,
-                                tainttracking::CheckType::EXPRESSION_AFTER);
+                                ::tainttracking::CheckType::EXPRESSION_AFTER);
 }
 
 void BytecodeGenerator::GenerateTaintTrackingHook(
-    tainttracking::ValueState value_state, AstNode* node) {
+    ::tainttracking::ValueState value_state, AstNode* node) {
   builder()->LoadUndefined();
-  if (value_state == tainttracking::ValueState::OPTIMIZED_OUT) {
+  if (value_state == ::tainttracking::ValueState::OPTIMIZED_OUT) {
     GenerateTaintTrackingHookBody(
-        node, tainttracking::CheckType::EXPRESSION_AFTER_OPTIMIZED_OUT);
+        node, ::tainttracking::CheckType::EXPRESSION_AFTER_OPTIMIZED_OUT);
     return;
   }
 
-  DCHECK_EQ(value_state, tainttracking::ValueState::STATIC_VALUE);
+  DCHECK_EQ(value_state, ::tainttracking::ValueState::STATIC_VALUE);
   GenerateTaintTrackingHookBody(node,
-                                tainttracking::CheckType::STATIC_VALUE_CHECK);
+                                ::tainttracking::CheckType::STATIC_VALUE_CHECK);
 }
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadGlobalICSlot(

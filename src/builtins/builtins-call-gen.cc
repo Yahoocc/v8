@@ -926,7 +926,7 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
   {
     // Tail call to the stub while leaving all the incoming JS arguments on
     // the stack.
-    TailCallJSBuiltin(Builtin::kHandleApiConstruct, context, target, new_target,
+    TailCallJSBuiltin(Builtin::kHandleApiCallOrConstruct, context, target, new_target,
                       argc, dispatch_handle);
   }
 }

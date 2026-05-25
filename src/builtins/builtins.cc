@@ -622,7 +622,6 @@ Builtins::JSBuiltinStateFlags Builtins::GetJSBuiltinState(Builtin builtin) {
     case Builtin::kConstructBoundFunction:
     case Builtin::kConstructedNonConstructable:
     case Builtin::kConstructProxy:
-    case Builtin::kHandleApiConstruct:
     case Builtin::kArrayConcat:
     case Builtin::kArrayPop:
     case Builtin::kArrayPush:

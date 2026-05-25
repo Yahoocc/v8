@@ -398,8 +398,8 @@ constexpr int kGearboxGenericBuiltinIdOffset = -2;
   ASM(CallNamedInterceptorSetter, CallApiSetter)                               \
   TFC(HandleApiCallOrConstruct, JSTrampoline)                                  \
   CPP(HandleApiConstruct, kDontAdaptArgumentsSentinel)                         \
-  CPP(HandleApiCallAsFunctionDelegate, kDontAdaptArgumentsSentinel)            \
-  CPP(HandleApiCallAsConstructorDelegate, kDontAdaptArgumentsSentinel)         \
+  CPP(HandleApiCallAsFunction, kDontAdaptArgumentsSentinel)                    \
+  CPP(HandleApiCallAsConstructor, kDontAdaptArgumentsSentinel)                 \
                                                                                \
   /* Adapters for Turbofan into runtime */                                     \
   TFC(AllocateInYoungGeneration, Allocate)                                     \

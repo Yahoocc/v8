@@ -908,12 +908,30 @@ config("internal_config") {
       libs = [ "atomic" ]
     }
   }
+}
+
+# Taint tracking configuration - only for runtime targets, not build tools
+config("taint_tracking_config") {
+  # Only targets in this file and its subdirs can depend on this.
+  visibility = [ "./*" ]
 
   # Taint tracking serialization depends on Cap'n Proto.
   lib_dirs = [ "//build/linux/debian_bullseye_amd64-sysroot/usr/lib/x86_64-linux-gnu" ]
-  libs += [
+  libs = [
     "capnp",
     "kj",
+  ]
+
+  # libkj needs exception_ptr symbols from libsupc++
+  # Cap'n Proto libraries are compiled with libstdc++, but Chromium uses libc++.
+  # Define __libc_single_threaded as 0 since sysroot's glibc 2.31 doesn't have it (added in 2.32)
+  ldflags = [
+    "-lstdc++",
+    "-Wl,--push-state",
+    "-Wl,--whole-archive",
+    "/usr/lib/gcc/x86_64-linux-gnu/12/libsupc++.a",
+    "-Wl,--pop-state",
+    "-Wl,--defsym,__libc_single_threaded=0",
   ]
 }
 
@@ -3429,7 +3447,9 @@ v8_source_set("v8_init") {
     ":v8_maybe_icu",
   ]
 
-  configs = [ ":internal_config" ]
+  configs = [
+    ":internal_config",
+  ]
 }
 
 # This is split out to be a non-code containing target that the Chromium browser
@@ -5806,13 +5826,52 @@ action_foreach("taint_tracking_capnp") {
   ]
 }
 
+# Stub for taint tracking when V8_DISABLE_TAINT_TRACKING is defined
+v8_source_set("v8_taint_tracking_stub") {
+  visibility = [ ":*" ]
+
+  # Stub implementation with empty functions
+  sources = [ "src/taint_tracking/taint_tracking_stub.cc" ]
+
+  configs = [ ":internal_config" ]
+
+  deps = [
+    ":v8_headers",
+    ":v8_libbase",
+  ]
+}
+
+# Separate source set for taint tracking to isolate Cap'n Proto dependencies
+v8_source_set("v8_taint_tracking") {
+  visibility = [ ":*" ]
+
+  sources = [
+    "src/taint_tracking/ast_serialization.cc",
+    "src/taint_tracking/object_versioner.cc",
+    "src/taint_tracking/symbolic_state.cc",
+    "src/taint_tracking/taint_tracking.cc",
+    "$target_gen_dir/v8/ast.capnp.c++",
+    "$target_gen_dir/v8/logrecord.capnp.c++",
+  ]
+
+  configs = [
+    ":internal_config",
+    ":taint_tracking_config",
+  ]
+
+  deps = [
+    ":taint_tracking_capnp",
+    ":v8_headers",
+    ":v8_libbase",
+  ]
+}
+
 v8_cluster_source_set("v8_base_without_compiler") {
   # Only targets in this file and gcmole can depend on this.
   visibility = [
     ":*",
     "tools/gcmole/:*",
   ]
-  deps = [ ":taint_tracking_capnp" ]
 
   # Split static libraries on windows into two.
   split_count = 2
@@ -6302,12 +6361,6 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "src/tasks/cancelable-task.cc",
     "src/tasks/operations-barrier.cc",
     "src/tasks/task-utils.cc",
-    "src/taint_tracking/ast_serialization.cc",
-    "src/taint_tracking/object_versioner.cc",
-    "src/taint_tracking/symbolic_state.cc",
-    "src/taint_tracking/taint_tracking.cc",
-    "$target_gen_dir/v8/ast.capnp.c++",
-    "$target_gen_dir/v8/logrecord.capnp.c++",
     "src/tracing/trace-event.cc",
     "src/tracing/traced-value.cc",
     "src/tracing/tracing-category-observer.cc",
@@ -6810,7 +6863,7 @@ v8_cluster_source_set("v8_base_without_compiler") {
     ":capnp_config",
   ]
 
-  deps += [
+  deps = [
     ":torque_generated_definitions",
     ":v8_bigint",
     ":v8_headers",
@@ -6825,6 +6878,13 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/fast_float",
     "//third_party/highway:libhwy",
   ]
+
+  # Use stub for snapshot toolchain (mksnapshot), full implementation otherwise
+  if (current_toolchain == v8_snapshot_toolchain) {
+    deps += [ ":v8_taint_tracking_stub" ]
+  } else {
+    deps += [ ":v8_taint_tracking" ]
+  }
 
   public_deps = [
     ":cppgc_base",
@@ -7954,6 +8014,8 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":internal_config",
       ":disable_icf",
     ]
+
+    defines = [ "V8_DISABLE_TAINT_TRACKING" ]
 
     deps = [
       ":v8_base_without_compiler",

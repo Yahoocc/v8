@@ -1956,8 +1956,8 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   uint32_t old_length = string->length();
   if (old_length <= new_length) return string;
 
-  base::SmallVector<tainttracking::TaintData, 256> taint_data(new_length);
-  tainttracking::CopyOut(*string, taint_data.data(), 0,
+  base::SmallVector<::tainttracking::TaintData, 256> taint_data(new_length);
+  ::tainttracking::CopyOut<SeqString>(reinterpret_cast<SeqString*>(string->ptr()), taint_data.data(), 0,
                          static_cast<int>(new_length));
 
   if (IsSeqOneByteString(*string)) {
@@ -1988,7 +1988,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   // for the left-over space to avoid races with the sweeper thread.
   string->set_length(new_length, kReleaseStore);
   string->ClearPadding();
-  tainttracking::CopyIn(*string, taint_data.data(), 0,
+  ::tainttracking::CopyIn<SeqString>(reinterpret_cast<SeqString*>(string->ptr()), taint_data.data(), 0,
                         static_cast<int>(new_length));
 
   return string;

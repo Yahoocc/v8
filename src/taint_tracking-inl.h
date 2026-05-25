@@ -93,6 +93,7 @@ public:
 
 private:
   v8::internal::Handle<v8::internal::NameDictionary> dict_;
+  v8::internal::Isolate* isolate_;
 };
 
 class TaggedRevisedObject {
@@ -150,7 +151,8 @@ public:
 
   Status WriteConcreteObject(
       ::Ast::JsObjectValue::Builder builder,
-      ObjectSnapshot snapshot);
+      ObjectSnapshot snapshot,
+      v8::internal::Isolate* isolate);
 
   Status WriteConcreteSmi(
       ::Ast::JsObjectValue::Builder builder,
@@ -158,32 +160,43 @@ public:
 
   void CopyJsObjectToStringSlow(
       ::Ast::JsString::Builder builder,
-      v8::internal::Handle<v8::internal::Object> obj);
+      v8::internal::Handle<v8::internal::Object> obj,
+      v8::internal::Isolate* isolate);
 
 
   // Non-cached methods
   void CopyJsStringSlow(
       ::Ast::JsString::Builder builder,
-      v8::internal::Handle<v8::internal::String> str);
+      v8::internal::Handle<v8::internal::String> str,
+      v8::internal::Isolate* isolate);
 
   void CopyJsStringSlow(
       ::Ast::JsString::Builder builder,
-      v8::internal::String* str);
+      v8::internal::String* str,
+      v8::internal::Isolate* isolate);
+
+  void CopyJsStringSlow(
+      ::Ast::JsString::Builder builder,
+      v8::internal::DirectHandle<v8::internal::String> str,
+      v8::internal::Isolate* isolate);
 
   Status WriteConcreteImmutableObjectSlow(
       ::Ast::JsObjectValue::Builder builder,
-      TaggedObject snapshot);
+      TaggedObject snapshot,
+      v8::internal::Isolate* isolate);
 
   Status WriteConcreteReceiverSlow(
       ::Ast::JsObjectValue::Builder builder,
-      TaggedRevisedObject snapshot);
+      TaggedRevisedObject snapshot,
+      v8::internal::Isolate* isolate);
 
   int GetDepth();
 
 private:
   Status WriteReceiverSlow(
       ::Ast::JsObjectValue::Builder builder,
-      TaggedRevisedObject value);
+      TaggedRevisedObject value,
+      v8::internal::Isolate* isolate);
 
   ::capnp::MallocMessageBuilder builder_;
   int depth_;
@@ -229,7 +242,7 @@ public:
 
   v8::internal::MaybeHandle<v8::internal::FixedArray>
   GetCrossOriginMessageTable(
-      v8::internal::Handle<v8::internal::String> ref);
+      v8::internal::DirectHandle<v8::internal::String> ref);
 
 private:
 
@@ -271,7 +284,7 @@ private:
   static std::mutex isolate_counter_mutex_;
   static int isolate_counter_;
 
-  ConcolicExecutor exec_;
+  // ConcolicExecutor exec_;  // Commented out: incomplete type, not used
   std::unique_ptr<ObjectVersioner> versioner_;
   v8::internal::Handle<v8::internal::ObjectHashTable>
   cross_origin_message_table_;

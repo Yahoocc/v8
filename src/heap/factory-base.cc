@@ -868,7 +868,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   string->clear_padding_destructively(length);
   string->set_length(length);
   string->set_raw_hash_field(String::kEmptyHashField);
-  ::tainttracking::InitTaintData(*string);
+  ::tainttracking::InitTaintData(string);
   DCHECK_EQ(size, string->Size());
   return handle(string, isolate());
 }

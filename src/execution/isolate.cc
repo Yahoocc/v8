@@ -1760,6 +1760,8 @@ class CurrentScriptIdsAndContextsStackVisitor {
   size_t cur_frame_ = 0;
 };
 
+}  // namespace
+
 namespace {
 
 class CurrentScriptDataStackVisitor {
@@ -3040,8 +3042,6 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 const ::tainttracking::TaintTracker* Isolate::taint_tracking_data() const {
   return nullptr;
 }
-
-}  // namespace internal
 
 namespace {
 

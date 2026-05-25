@@ -398,7 +398,7 @@ ExternalReference ExternalReference::Create(StatsCounter* counter) {
 
 // static
 ExternalReference ExternalReference::Create(
-    tainttracking::InstanceCounter* counter) {
+    ::tainttracking::InstanceCounter* counter) {
   return ExternalReference(reinterpret_cast<Address>(counter));
 }
 
