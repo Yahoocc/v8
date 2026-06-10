@@ -5907,6 +5907,83 @@ size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
                               processed_characters_return);
 }
 
+void String::WriteTaint(TaintData* buffer, int start, int length) const {
+  // Stub implementation for taint tracking
+  // This is called by Blink's to_blink_string.cc
+  // TODO: Implement actual taint tracking if needed
+  if (buffer == nullptr) return;
+
+  int str_length = Length();
+  if (start < 0) start = 0;
+  if (length < 0 || start + length > str_length) {
+    length = str_length - start;
+  }
+
+  // Initialize taint buffer to 0 (no taint)
+  if (length > 0) {
+    std::memset(buffer, 0, length);
+  }
+}
+
+int64_t String::GetTaintInfo() const {
+  // Stub implementation for taint tracking
+  // Returns 0 indicating no taint information
+  return 0;
+}
+
+// Template instantiations for LogIfBufferTainted
+template <typename Char>
+int64_t String::LogIfBufferTainted(TaintData* buffer, Char* stringdata,
+                                   size_t length, int symbolic_data,
+                                   v8::Isolate* isolate,
+                                   TaintSinkLabel label) {
+  // Stub implementation for taint tracking
+  // Returns -1 indicating not tainted
+  return -1;
+}
+
+// Explicit template instantiations
+template int64_t String::LogIfBufferTainted<char>(
+    TaintData*, char*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<const char>(
+    TaintData*, const char*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<uint8_t>(
+    TaintData*, uint8_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<const uint8_t>(
+    TaintData*, const uint8_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<char16_t>(
+    TaintData*, char16_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<const char16_t>(
+    TaintData*, const char16_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<uint16_t>(
+    TaintData*, uint16_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+template int64_t String::LogIfBufferTainted<const uint16_t>(
+    TaintData*, const uint16_t*, size_t, int, v8::Isolate*, TaintSinkLabel);
+
+void String::SetTaintInfo(v8::Local<v8::Value> val, int64_t info) {
+  // Stub implementation for taint tracking
+  // Does nothing in this stub version
+}
+
+int64_t String::LogIfTainted(TaintSinkLabel label, int symbolic_data) {
+  // Stub implementation for taint tracking
+  // Returns -1 indicating not tainted
+  return -1;
+}
+
+void String::SetTaint(v8::Local<v8::Value> val, v8::Isolate* isolate,
+                     TaintType type) {
+  // Stub implementation for taint tracking
+  // Does nothing in this stub version
+}
+
+int64_t String::NewUniqueId(v8::Isolate* isolate) {
+  // Stub implementation for taint tracking
+  // Returns a simple incrementing counter
+  static std::atomic<int64_t> counter{1};
+  return counter.fetch_add(1, std::memory_order_relaxed);
+}
+
 namespace {
 
 bool HasExternalStringResource(i::Tagged<i::String> string) {
@@ -7192,6 +7269,11 @@ void Context::SetErrorMessageForWasmCodeGeneration(Local<String> error) {
   auto context = Utils::OpenDirectHandle(this);
   auto error_handle = Utils::OpenDirectHandle(*error);
   context->set_error_message_for_wasm_code_gen(*error_handle);
+}
+
+void Context::SetTaintTrackingContextId(Local<Value> token) {
+  // Stub implementation for taint tracking
+  // Does nothing in this stub version
 }
 
 void Context::SetAbortScriptExecution(
