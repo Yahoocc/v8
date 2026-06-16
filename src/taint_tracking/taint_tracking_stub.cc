@@ -72,7 +72,9 @@ bool NodeLabel::EqualTo::operator()(const NodeLabel& one, const NodeLabel& two) 
 }
 
 // V8NodeLabelSerializer stub
-V8NodeLabelSerializer::V8NodeLabelSerializer(Isolate*) : isolate_(nullptr) {}
+V8NodeLabelSerializer::V8NodeLabelSerializer(Isolate*) : local_isolate_(nullptr) {}
+
+V8NodeLabelSerializer::V8NodeLabelSerializer(LocalIsolate*) : local_isolate_(nullptr) {}
 
 Status V8NodeLabelSerializer::Serialize(Handle<Object>*, const NodeLabel&) {
   return Status::OK;

@@ -1468,7 +1468,7 @@ BytecodeGenerator::BytecodeGenerator(
       generator_jump_table_(nullptr),
       suspend_count_(0),
       loop_depth_(0),
-      node_serializer_(local_isolate->AsIsolate()),
+      node_serializer_(local_isolate),
       hole_check_bitmap_(0),
       current_loop_scope_(nullptr),
       current_for_in_scope_(nullptr),

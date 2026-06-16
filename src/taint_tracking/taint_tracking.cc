@@ -2396,7 +2396,10 @@ void LogRuntimeSymbolic(Isolate* isolate, Handle<Object> target_object,
 uint64_t MAGIC_NUMBER = 0xbaededfeed;
 
 V8NodeLabelSerializer::V8NodeLabelSerializer(Isolate* isolate)
-    : isolate_(isolate) {}
+    : local_isolate_(isolate) {}
+
+V8NodeLabelSerializer::V8NodeLabelSerializer(LocalIsolate* local_isolate)
+    : local_isolate_(local_isolate) {}
 
 Status V8NodeLabelSerializer::Serialize(Object** output,
                                         const NodeLabel& label) {
@@ -2410,7 +2413,7 @@ Status V8NodeLabelSerializer::Serialize(Object** output,
 
 v8::internal::Handle<v8::internal::Object> V8NodeLabelSerializer::Make(
     const NodeLabel& label) {
-  auto* factory = isolate_->factory();
+  auto* factory = local_isolate_->factory();
   Handle<SeqOneByteString> str =
       factory
           ->NewRawOneByteString(sizeof(NodeLabel::Rand) +

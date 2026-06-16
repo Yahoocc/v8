@@ -86,6 +86,7 @@ private:
 class V8NodeLabelSerializer {
 public:
   V8NodeLabelSerializer(v8::internal::Isolate*);
+  V8NodeLabelSerializer(v8::internal::LocalIsolate*);
   Status Serialize(v8::internal::Handle<v8::internal::Object>*,
                    const NodeLabel&);
   Status Serialize(v8::internal::Object**,
@@ -100,7 +101,7 @@ private:
   static const int RAND_INDEX = COUNT_INDEX + 1;
   static const int SIZE = RAND_INDEX + 1;
 
-  v8::internal::Isolate* isolate_;
+  v8::internal::LocalIsolate* local_isolate_;
 };
 
 
