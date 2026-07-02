@@ -915,24 +915,8 @@ config("taint_tracking_config") {
   # Only targets in this file and its subdirs can depend on this.
   visibility = [ "./*" ]
 
-  # Taint tracking serialization depends on Cap'n Proto.
-  lib_dirs = [ "//build/linux/debian_bullseye_amd64-sysroot/usr/lib/x86_64-linux-gnu" ]
-  libs = [
-    "capnp",
-    "kj",
-  ]
-
-  # libkj needs exception_ptr symbols from libsupc++
-  # Cap'n Proto libraries are compiled with libstdc++, but Chromium uses libc++.
-  # Define __libc_single_threaded as 0 since sysroot's glibc 2.31 doesn't have it (added in 2.32)
-  ldflags = [
-    "-lstdc++",
-    "-Wl,--push-state",
-    "-Wl,--whole-archive",
-    "/usr/lib/gcc/x86_64-linux-gnu/12/libsupc++.a",
-    "-Wl,--pop-state",
-    "-Wl,--defsym,__libc_single_threaded=0",
-  ]
+  # Use Chromium-built Cap'n Proto (compiled with libc++)
+  # No external library dependencies needed
 }
 
 config("capnp_config") {
@@ -5856,6 +5840,16 @@ v8_source_set("v8_taint_tracking") {
 
   configs = [
     ":internal_config",
+  ]
+
+  # Suppress warnings for generated Cap'n Proto code
+  cflags_cc = [
+    "-Wno-c++98-compat-extra-semi",
+  ]
+
+  # Propagate taint_tracking_config to all targets that depend on this
+  # Use all_dependent_configs to ensure ldflags propagate to final linking
+  all_dependent_configs = [
     ":taint_tracking_config",
   ]
 
@@ -5863,6 +5857,8 @@ v8_source_set("v8_taint_tracking") {
     ":taint_tracking_capnp",
     ":v8_headers",
     ":v8_libbase",
+    "//third_party/capnproto:capnp",
+    "//third_party/capnproto:kj",
   ]
 }
 
@@ -6879,11 +6875,11 @@ v8_cluster_source_set("v8_base_without_compiler") {
     "//third_party/highway:libhwy",
   ]
 
-  # Use stub for snapshot toolchain (mksnapshot), full implementation otherwise
-  if (current_toolchain == v8_snapshot_toolchain) {
-    deps += [ ":v8_taint_tracking_stub" ]
-  } else {
+  # Use full taint tracking implementation if Cap'n Proto is available
+  if (v8_capnp_include_dir != "") {
     deps += [ ":v8_taint_tracking" ]
+  } else {
+    deps += [ ":v8_taint_tracking_stub" ]
   }
 
   public_deps = [

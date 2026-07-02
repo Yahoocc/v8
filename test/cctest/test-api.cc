@@ -562,11 +562,12 @@ THREADED_TEST(Script) {
 
 
 class TestResource: public String::ExternalStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<uint16_t> {
  public:
   explicit TestResource(uint16_t* data, int* counter = nullptr,
                         bool owning_data = true)
-      : data_(data), length_(0), counter_(counter), owning_data_(owning_data) {
+      : v8::String::TaintTrackingStringBufferImpl<uint16_t>(data, 0),
+        data_(data), length_(0), counter_(counter), owning_data_(owning_data) {
     while (data[length_]) ++length_;
   }
 
@@ -589,11 +590,12 @@ class TestResource: public String::ExternalStringResource,
 
 class TestOneByteResource :
  public String::ExternalOneByteStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<char> {
  public:
   explicit TestOneByteResource(const char* data, int* counter = nullptr,
                                size_t offset = 0)
-      : orig_data_(data),
+      : v8::String::TaintTrackingStringBufferImpl<char>(data + offset, strlen(data) - offset),
+        orig_data_(data),
         data_(data + offset),
         length_(strlen(data) - offset),
         counter_(counter) {}
@@ -898,9 +900,11 @@ THREADED_TEST(UsingExternalOneByteString) {
 
 class RandomLengthResource :
  public v8::String::ExternalStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<uint16_t> {
  public:
-  explicit RandomLengthResource(int length) : length_(length) {}
+  explicit RandomLengthResource(int length)
+      : v8::String::TaintTrackingStringBufferImpl<uint16_t>(string_, length),
+        length_(length) {}
   const uint16_t* data() const override { return string_; }
   size_t length() const override { return length_; }
 
@@ -15511,10 +15515,11 @@ TEST(ObjectClone) {
 
 class OneByteVectorResource :
  public v8::String::ExternalOneByteStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<char> {
  public:
   explicit OneByteVectorResource(v8::base::Vector<const char> vector)
-      : data_(vector) {}
+      : v8::String::TaintTrackingStringBufferImpl<char>(vector.begin(), vector.length()),
+        data_(vector) {}
   ~OneByteVectorResource() override = default;
   size_t length() const override { return data_.length(); }
   const char* data() const override { return data_.begin(); }
@@ -15527,10 +15532,11 @@ class OneByteVectorResource :
 
 class UC16VectorResource :
  public v8::String::ExternalStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<uint16_t> {
  public:
   explicit UC16VectorResource(v8::base::Vector<const v8::base::uc16> vector)
-      : data_(vector) {}
+      : v8::String::TaintTrackingStringBufferImpl<uint16_t>(reinterpret_cast<const uint16_t*>(vector.begin()), vector.length()),
+        data_(vector) {}
   ~UC16VectorResource() override = default;
   size_t length() const override { return data_.length(); }
   const v8::base::uc16* data() const override { return data_.begin(); }

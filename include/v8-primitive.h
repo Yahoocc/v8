@@ -202,16 +202,32 @@ class V8_EXPORT String : public Name {
     virtual TaintData* InitTaintChars(size_t length) = 0;
   };
 
-  template <typename T>
-  class TaintTrackingStringBufferImpl : public TaintTrackingBase {
+  class V8_EXPORT TaintTrackingStringBufferImpl
+      : public virtual TaintTrackingBase {
    public:
-    TaintTrackingStringBufferImpl(const T* data, size_t length)
-        : data_(data), length_(length) {}
-    TaintData* GetTaintInfo() const override { return nullptr; }
-    TaintData* InitTaintChars(size_t length) override { return nullptr; }
+    TaintTrackingStringBufferImpl() : taint_data_(nullptr) {}
+
+    TaintData* GetTaintInfo() const override {
+      return taint_data_.get();
+    }
+
+    TaintData* InitTaintChars(size_t length) override {
+      TaintData* answer = taint_data_.get();
+      if (!taint_data_) {
+        answer = new TaintData[length];
+        taint_data_.reset(answer);
+        return answer;
+      } else {
+        return answer;
+      }
+    }
+
+    void SetTaintChars(TaintData* buffer) {
+      taint_data_.reset(buffer);
+    }
+
    private:
-    const T* data_;
-    size_t length_;
+    std::unique_ptr<TaintData[]> taint_data_;
   };
 
   /**

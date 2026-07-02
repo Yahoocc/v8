@@ -1,6 +1,6 @@
 #include "test/cctest/cctest.h"
 
-#include "src/objects-inl.h"
+#include "src/objects/objects-inl.h"
 #include "src/taint_tracking.h"
 #include "src/taint_tracking-inl.h"
 #include "src/taint_tracking/log_listener.h"
@@ -540,10 +540,11 @@ TEST(OnBeforeCompileGetSetConsSingleTaintByteArray) {
 
 class TaintOneByteResource :
   public v8::String::ExternalOneByteStringResource,
-  public v8::String::TaintTrackingStringBufferImpl {
+  public v8::String::TaintTrackingStringBufferImpl<char> {
 public:
   TaintOneByteResource(const char* data, size_t length)
-    : data_(data), length_(length) {}
+    : v8::String::TaintTrackingStringBufferImpl<char>(data, length),
+      data_(data), length_(length) {}
   ~TaintOneByteResource() { i::DeleteArray(data_); }
   virtual const char* data() const { return data_; }
   virtual size_t length() const { return length_; }

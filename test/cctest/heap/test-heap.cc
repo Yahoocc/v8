@@ -3710,10 +3710,11 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
 }
 
 class SourceResource : public v8::String::ExternalOneByteStringResource,
- public v8::String::TaintTrackingStringBufferImpl {
+ public v8::String::TaintTrackingStringBufferImpl<char> {
  public:
   explicit SourceResource(const char* data)
-    : data_(data), length_(strlen(data)) { }
+    : v8::String::TaintTrackingStringBufferImpl<char>(data, strlen(data)),
+      data_(data), length_(strlen(data)) { }
 
   void Dispose() override {
     i::DeleteArray(data_);

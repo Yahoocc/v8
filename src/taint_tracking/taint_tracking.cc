@@ -56,7 +56,7 @@ const int kTaintTrackingVersion = 15;
 
 // const int kPointerStrSize = 64;  // Unused
 // const int kBitsPerByte = 8;  // Unused
-const int kStackTraceInfoSize = 4000;
+// const int kStackTraceInfoSize = 4000;  // Unused
 const char kEnableHeaderLoggingName[] = "enableHeaderLogging";
 const char kEnableBodyLoggingName[] = "enableBodyLogging";
 const char kLoggingFilenamePrefix[] = "loggingFilenamePrefix";
@@ -894,27 +894,21 @@ template <class T>
 TaintData* StringTaintData(Tagged<T> str);
 template <>
 TaintData* StringTaintData<SeqOneByteString>(Tagged<SeqOneByteString> str) {
-  // TODO: GetTaintChars method may not exist in new V8 version
-  // return str->GetTaintChars();
-  return nullptr;
+  return str->GetTaintChars();
 }
 template <>
 TaintData* StringTaintData<SeqTwoByteString>(Tagged<SeqTwoByteString> str) {
-  // TODO: GetTaintChars method may not exist in new V8 version
-  // return str->GetTaintChars();
-  return nullptr;
+  return str->GetTaintChars();
 }
 template <>
 TaintData* StringTaintData<ExternalOneByteString>(Tagged<ExternalOneByteString> str) {
-  // TODO: GetTaintChars method may not exist in new V8 version
-  // return str->resource()->GetTaintChars();
-  return nullptr;
+  // External strings store taint data in their resource object
+  return str->resource()->GetTaintInfo();
 }
 template <>
 TaintData* StringTaintData<ExternalTwoByteString>(Tagged<ExternalTwoByteString> str) {
-  // TODO: GetTaintChars method may not exist in new V8 version
-  // return str->resource()->GetTaintChars();
-  return nullptr;
+  // External strings store taint data in their resource object
+  return str->resource()->GetTaintInfo();
 }
 
 template <class T>
@@ -1615,6 +1609,9 @@ int64_t LogIfTainted(IsTaintedVisitor& visitor,
                      v8::internal::Isolate* isolate,
                      v8::String::TaintSinkLabel label,
                      std::shared_ptr<SymbolicState> symbolic_data) {
+  // Temporarily disable taint logging to debug hang issue
+  // return NO_MESSAGE;
+
   if ((visitor.GetFlag() & static_cast<TaintFlag>(TaintType::UNTAINTED)) &&
       !v8_flags.taint_tracking_sources_sinks_to_logs) {
     return NO_MESSAGE;
@@ -2396,7 +2393,7 @@ void LogRuntimeSymbolic(Isolate* isolate, Handle<Object> target_object,
 uint64_t MAGIC_NUMBER = 0xbaededfeed;
 
 V8NodeLabelSerializer::V8NodeLabelSerializer(Isolate* isolate)
-    : local_isolate_(isolate) {}
+    : local_isolate_(isolate->main_thread_local_isolate()) {}
 
 V8NodeLabelSerializer::V8NodeLabelSerializer(LocalIsolate* local_isolate)
     : local_isolate_(local_isolate) {}
