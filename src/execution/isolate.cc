@@ -3037,10 +3037,12 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
   UNREACHABLE();
 }
 
-::tainttracking::TaintTracker* Isolate::taint_tracking_data() { return nullptr; }
+::tainttracking::TaintTracker* Isolate::taint_tracking_data() {
+  return taint_tracking_data_.get();
+}
 
 const ::tainttracking::TaintTracker* Isolate::taint_tracking_data() const {
-  return nullptr;
+  return taint_tracking_data_.get();
 }
 
 namespace {

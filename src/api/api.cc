@@ -165,6 +165,7 @@
 #endif  // V8_INTL_SUPPORT
 
 #include "src/strings/string-hasher-inl.h"
+#include "src/taint_tracking.h"
 
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
@@ -5932,14 +5933,35 @@ int64_t String::GetTaintInfo() const {
 }
 
 // Template instantiations for LogIfBufferTainted
+// This is called from Blink (ScriptStateImpl::LogIfTainted)
+// The actual implementation uses tainttracking namespace functions internally
 template <typename Char>
 int64_t String::LogIfBufferTainted(TaintData* buffer, Char* stringdata,
                                    size_t length, int symbolic_data,
                                    v8::Isolate* isolate,
                                    TaintSinkLabel label) {
-  // Stub implementation for taint tracking
-  // Returns -1 indicating not tainted
-  return -1;
+  // Determine the underlying character type (1 byte = uint8_t, 2 bytes = uint16_t)
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  if constexpr (sizeof(Char) == 1) {
+    // 8-bit characters
+    return ::tainttracking::LogIfBufferTainted<uint8_t>(
+        buffer,
+        reinterpret_cast<const uint8_t*>(stringdata),
+        length,
+        symbolic_data,
+        i_isolate,
+        label);
+  } else {
+    // 16-bit characters
+    return ::tainttracking::LogIfBufferTainted<uint16_t>(
+        buffer,
+        reinterpret_cast<const uint16_t*>(stringdata),
+        length,
+        symbolic_data,
+        i_isolate,
+        label);
+  }
 }
 
 // Explicit template instantiations

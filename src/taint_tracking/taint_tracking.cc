@@ -19,6 +19,7 @@
 #include <memory>
 #include <random>
 #include <tuple>
+#include <unordered_map>
 
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
@@ -77,6 +78,21 @@ std::mutex TaintTracker::Impl::isolate_counter_mutex_;
 
 // Use a raw pointer to avoid exit-time destructor warning
 LogListener* global_log_listener = nullptr;
+
+std::unordered_map<Address, std::unique_ptr<TaintData[]>>* seq_string_taint_data =
+    nullptr;
+
+TaintData* GetSeqStringTaintData(Tagged<SeqString> str) {
+  if (seq_string_taint_data == nullptr) {
+    seq_string_taint_data = new std::unordered_map<Address, std::unique_ptr<TaintData[]>>();
+  }
+  auto& data = (*seq_string_taint_data)[str.ptr()];
+  if (!data) {
+    data.reset(new TaintData[str->length()]);
+    memset(data.get(), static_cast<int>(TaintType::UNTAINTED), str->length());
+  }
+  return data.get();
+}
 
 class IsTaintedVisitor;
 void InitTaintInfo(const std::vector<std::tuple<TaintType, int>>&,
@@ -894,11 +910,11 @@ template <class T>
 TaintData* StringTaintData(Tagged<T> str);
 template <>
 TaintData* StringTaintData<SeqOneByteString>(Tagged<SeqOneByteString> str) {
-  return str->GetTaintChars();
+  return GetSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* StringTaintData<SeqTwoByteString>(Tagged<SeqTwoByteString> str) {
-  return str->GetTaintChars();
+  return GetSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* StringTaintData<ExternalOneByteString>(Tagged<ExternalOneByteString> str) {
@@ -1922,7 +1938,8 @@ bool TaintTracker::IsRewriteAstEnabled() {
 }
 
 void TaintTracker::Impl::Initialize(v8::internal::Isolate* isolate) {
-  if (strlen(v8_flags.taint_log_file) != 0) {
+  const char* taint_log_file = v8_flags.taint_log_file;
+  if (taint_log_file != nullptr && taint_log_file[0] != '\0') {
     std::lock_guard<std::mutex> guard(log_mutex_);
     is_logging_ = true;
 
