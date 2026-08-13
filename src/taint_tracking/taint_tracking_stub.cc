@@ -138,6 +138,13 @@ TaintData* GetWriteableStringTaintData<SeqString>(Tagged<SeqString>) {
 template <class T>
 void FlattenTaintData(Tagged<T>, TaintData*, int, int) {}
 
+template <class T, class S>
+void FlattenTaintDataIfTainted(Tagged<T>, Tagged<S>, TaintData*&, int, int,
+                               int) {}
+
+template <class T, class S>
+void FlattenTaint(Tagged<S>, Tagged<T>, int, int) {}
+
 template <class T>
 void CopyOut(Tagged<T>, TaintData*, int, int) {}
 
@@ -146,6 +153,19 @@ void CopyIn(Tagged<T>, TaintType, int, int) {}
 
 template <class T>
 void CopyIn(Tagged<T>, const TaintData*, int, int) {}
+
+template <class T>
+TaintType GetTaintStatusRange(Tagged<T>, size_t, size_t) {
+  return TaintType::UNTAINTED;
+}
+
+template <class T>
+TaintType GetTaintStatus(Tagged<T>, size_t) {
+  return TaintType::UNTAINTED;
+}
+
+template <class T>
+void SetTaintStatus(Tagged<T>, size_t, TaintType) {}
 
 template <class T, class Array>
 void OnJoinManyStrings(T*, Array*, Isolate*) {}
@@ -159,10 +179,34 @@ void OnNewReplaceRegexpWithString(String*, T*, JSRegExp*, String*, Isolate*) {}
 // Explicit instantiations
 template void FlattenTaintData<String>(Tagged<String>, TaintData*, int, int);
 
+template void FlattenTaintDataIfTainted<String, SeqString>(
+    Tagged<String>, Tagged<SeqString>, TaintData*&, int, int, int);
+template void FlattenTaintDataIfTainted<String, SeqOneByteString>(
+    Tagged<String>, Tagged<SeqOneByteString>, TaintData*&, int, int, int);
+template void FlattenTaintDataIfTainted<String, SeqTwoByteString>(
+    Tagged<String>, Tagged<SeqTwoByteString>, TaintData*&, int, int, int);
+
+template void FlattenTaint<SeqOneByteString, String>(Tagged<String>,
+                                                     Tagged<SeqOneByteString>,
+                                                     int, int);
+template void FlattenTaint<SeqTwoByteString, String>(Tagged<String>,
+                                                     Tagged<SeqTwoByteString>,
+                                                     int, int);
+
 template void CopyOut<SeqString>(Tagged<SeqString>, TaintData*, int, int);
 
 template void CopyIn<SeqString>(Tagged<SeqString>, TaintType, int, int);
 template void CopyIn<SeqString>(Tagged<SeqString>, const TaintData*, int, int);
+
+template TaintType GetTaintStatusRange<String>(Tagged<String>, size_t, size_t);
+template TaintType GetTaintStatusRange<SeqString>(Tagged<SeqString>, size_t,
+                                                   size_t);
+template TaintType GetTaintStatus<String>(Tagged<String>, size_t);
+template void SetTaintStatus<SeqOneByteString>(Tagged<SeqOneByteString>, size_t,
+                                                TaintType);
+template void SetTaintStatus<SeqTwoByteString>(Tagged<SeqTwoByteString>, size_t,
+                                                TaintType);
+template void SetTaintStatus<String>(Tagged<String>, size_t, TaintType);
 
 template void OnJoinManyStrings<SeqOneByteString, FixedArray>(
     SeqOneByteString*, FixedArray*, Isolate*);

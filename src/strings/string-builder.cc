@@ -38,14 +38,18 @@ void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
         len = -encoded_slice;
       }
       String::WriteToFlat(special, sink + position, pos, len);
-      ::tainttracking::FlattenTaintData(special, taint_sink + position, pos, len);
+      if (taint_sink != nullptr) {
+        ::tainttracking::FlattenTaintData(special, taint_sink + position, pos, len);
+      }
       position += len;
     } else {
       Tagged<String> string = Cast<String>(element);
       int element_length = string->length();
       String::WriteToFlat(string, sink + position, 0, element_length);
-      ::tainttracking::FlattenTaintData(string, taint_sink + position, 0,
-                                      element_length);
+      if (taint_sink != nullptr) {
+        ::tainttracking::FlattenTaintData(string, taint_sink + position, 0,
+                                          element_length);
+      }
       position += element_length;
     }
   }
@@ -60,6 +64,40 @@ template void StringBuilderConcatHelper<uint8_t>(Tagged<String> special,
 template void StringBuilderConcatHelper<base::uc16>(
     Tagged<String> special, base::uc16* sink, Tagged<FixedArray> fixed_array,
     uint32_t array_length, ::tainttracking::TaintData*);
+
+bool StringBuilderConcatHasTaint(Tagged<String> special,
+                                 Tagged<FixedArray> fixed_array,
+                                 uint32_t array_length) {
+  DisallowGarbageCollection no_gc;
+  for (uint32_t i = 0; i < array_length; i++) {
+    Tagged<Object> element = fixed_array->get(i);
+    if (IsSmi(element)) {
+      int encoded_slice = Smi::ToInt(element);
+      int pos;
+      int len;
+      if (encoded_slice > 0) {
+        pos = StringBuilderSubstringPosition::decode(encoded_slice);
+        len = StringBuilderSubstringLength::decode(encoded_slice);
+      } else {
+        Tagged<Object> obj = fixed_array->get(++i);
+        DCHECK(IsSmi(obj));
+        pos = Smi::ToInt(obj);
+        len = -encoded_slice;
+      }
+      if (::tainttracking::GetTaintStatusRange(special, pos, len) !=
+          ::tainttracking::TaintType::UNTAINTED) {
+        return true;
+      }
+    } else {
+      Tagged<String> string = Cast<String>(element);
+      if (::tainttracking::GetTaintStatusRange(string, 0, string->length()) !=
+          ::tainttracking::TaintType::UNTAINTED) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 int StringBuilderConcatLength(int special_length,
                               Tagged<FixedArray> fixed_array, int array_length,
@@ -222,9 +260,13 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
 
     DisallowGarbageCollection no_gc;
     uint8_t* char_buffer = seq->GetChars(no_gc);
+    ::tainttracking::TaintData* taint_sink =
+        StringBuilderConcatHasTaint(*subject_, *array_builder_.array(),
+                                    array_builder_len)
+            ? ::tainttracking::GetWriteableStringTaintData(*seq)
+            : nullptr;
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                              array_builder_len,
-                              ::tainttracking::GetWriteableStringTaintData(*seq));
+                              array_builder_len, taint_sink);
     ::tainttracking::OnJoinManyStrings(reinterpret_cast<SeqOneByteString*>(seq->ptr()), reinterpret_cast<FixedArray*>(array_builder_.array()->ptr()), isolate);
     joined_string = Cast<String>(seq);
   } else {
@@ -236,9 +278,13 @@ MaybeDirectHandle<String> ReplacementStringBuilder::ToString() {
 
     DisallowGarbageCollection no_gc;
     base::uc16* char_buffer = seq->GetChars(no_gc);
+    ::tainttracking::TaintData* taint_sink =
+        StringBuilderConcatHasTaint(*subject_, *array_builder_.array(),
+                                    array_builder_len)
+            ? ::tainttracking::GetWriteableStringTaintData(*seq)
+            : nullptr;
     StringBuilderConcatHelper(*subject_, char_buffer, *array_builder_.array(),
-                              array_builder_len,
-                              ::tainttracking::GetWriteableStringTaintData(*seq));
+                              array_builder_len, taint_sink);
     ::tainttracking::OnJoinManyStrings(reinterpret_cast<SeqTwoByteString*>(seq->ptr()), reinterpret_cast<FixedArray*>(array_builder_.array()->ptr()), isolate);
     joined_string = Cast<String>(seq);
   }
@@ -352,20 +398,18 @@ void IncrementalStringBuilder::AppendStringByCopy(DirectHandle<String> string) {
       String::WriteToFlat(
           *string, current->GetChars(no_gc) + current_index_, 0,
           string->length());
-      ::tainttracking::FlattenTaintData(
-          *string, ::tainttracking::GetWriteableStringTaintData(*current) +
-                       current_index_,
-          0, string->length());
+      ::tainttracking::TaintData* current_taint = nullptr;
+      ::tainttracking::FlattenTaintDataIfTainted(
+          *string, *current, current_taint, current_index_, 0, string->length());
     } else {
       DirectHandle<SeqTwoByteString> current =
           Cast<SeqTwoByteString>(current_part());
       String::WriteToFlat(
           *string, current->GetChars(no_gc) + current_index_, 0,
           string->length());
-      ::tainttracking::FlattenTaintData(
-          *string, ::tainttracking::GetWriteableStringTaintData(*current) +
-                       current_index_,
-          0, string->length());
+      ::tainttracking::TaintData* current_taint = nullptr;
+      ::tainttracking::FlattenTaintDataIfTainted(
+          *string, *current, current_taint, current_index_, 0, string->length());
     }
   }
   current_index_ += string->length();

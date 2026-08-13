@@ -378,10 +378,14 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawOneByteString(length));
     DisallowGarbageCollection no_gc;
+    ::tainttracking::TaintData* answer_taint =
+        StringBuilderConcatHasTaint(*special, *array,
+                                    static_cast<uint32_t>(array_length))
+            ? ::tainttracking::GetWriteableStringTaintData(*answer)
+            : nullptr;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               static_cast<uint32_t>(array_length),
-                              ::tainttracking::GetWriteableStringTaintData(
-                                  *answer));
+                              answer_taint);
     ::tainttracking::OnJoinManyStrings(reinterpret_cast<SeqOneByteString*>(answer->ptr()), reinterpret_cast<FixedArray*>(array->ptr()), isolate);
     return *answer;
   } else {
@@ -389,10 +393,14 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, answer, isolate->factory()->NewRawTwoByteString(length));
     DisallowGarbageCollection no_gc;
+    ::tainttracking::TaintData* answer_taint =
+        StringBuilderConcatHasTaint(*special, *array,
+                                    static_cast<uint32_t>(array_length))
+            ? ::tainttracking::GetWriteableStringTaintData(*answer)
+            : nullptr;
     StringBuilderConcatHelper(*special, answer->GetChars(no_gc), *array,
                               static_cast<uint32_t>(array_length),
-                              ::tainttracking::GetWriteableStringTaintData(
-                                  *answer));
+                              answer_taint);
     ::tainttracking::OnJoinManyStrings(reinterpret_cast<SeqTwoByteString*>(answer->ptr()), reinterpret_cast<FixedArray*>(array->ptr()), isolate);
     return *answer;
   }
@@ -632,8 +640,7 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
                                 indices, no_gc);
   }
 
-  ::tainttracking::TaintData* dst_taint =
-      ::tainttracking::GetWriteableStringTaintData(*Cast<SeqString>(result));
+  ::tainttracking::TaintData* dst_taint = nullptr;
   int dst_index = 0;
   int prev_index = -1;
   for (int index : indices) {
@@ -641,8 +648,9 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
     const int slice_end = index;
     if (slice_end > slice_start) {
       const int slice_length = slice_end - slice_start;
-      ::tainttracking::FlattenTaintData(*string, dst_taint + dst_index,
-                                      slice_start, slice_length);
+      ::tainttracking::FlattenTaintDataIfTainted(*string, *Cast<SeqString>(result),
+                                                  dst_taint, dst_index,
+                                                  slice_start, slice_length);
       dst_index += slice_length;
     }
     ::tainttracking::CopyIn(*Cast<SeqString>(result),
@@ -653,8 +661,10 @@ RUNTIME_FUNCTION(Runtime_StringEscapeQuotes) {
   }
   if (prev_index < string_length - 1) {
     const int remaining_length = string_length - prev_index - 1;
-    ::tainttracking::FlattenTaintData(*string, dst_taint + dst_index,
-                                    prev_index + 1, remaining_length);
+    ::tainttracking::FlattenTaintDataIfTainted(*string, *Cast<SeqString>(result),
+                                                dst_taint, dst_index,
+                                                prev_index + 1,
+                                                remaining_length);
   }
 
   return *result;

@@ -192,7 +192,21 @@ class V8_EXPORT String : public Name {
     SCRIPT_INNERTEXT = 17,
     SETTIMEOUT = 18,
     SETINTERVAL = 19,
-    SETIMMEDIATE = 20
+    SETIMMEDIATE = 20,
+
+    // Legacy ChromiumTaintTracking sink labels. Keep these distinct from the
+    // newer labels above so old Blink sink categories can be logged precisely.
+    EMBED_SRC_SINK = 21,
+    IFRAME_SRC_SINK = 22,
+    ANCHOR_SRC_SINK = 23,
+    IMG_SRC_SINK = 24,
+    SCRIPT_SRC_URL_SINK = 25,
+    JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE = 26,
+    COOKIE_SINK = 27,
+    CSS_STYLE_ATTRIBUTE = 28,
+    JAVASCRIPT_SET_TIMEOUT = 29,
+    JAVASCRIPT_SET_INTERVAL = 30,
+    LOCATION_ASSIGNMENT = 31
   };
 
   class V8_EXPORT TaintTrackingBase {

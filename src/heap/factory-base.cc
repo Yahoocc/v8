@@ -970,6 +970,9 @@ HandleType<String>::MaybeType FactoryBase<Impl>::NewConsString(
             right->template GetDirectStringChars<uint8_t>(no_gc, access_guard);
         CopyChars(dest + left_length, src, right_length);
       }
+      if constexpr (std::is_same_v<Impl, Factory>) {
+        ::tainttracking::OnNewConcatStringCopy(*result, *left, *right, isolate());
+      }
       return result;
     }
 
@@ -982,6 +985,9 @@ HandleType<String>::MaybeType FactoryBase<Impl>::NewConsString(
     String::WriteToFlat(*left, sink, 0, left->length(), access_guard);
     String::WriteToFlat(*right, sink + left->length(), 0, right->length(),
                         access_guard);
+    if constexpr (std::is_same_v<Impl, Factory>) {
+      ::tainttracking::OnNewConcatStringCopy(*result, *left, *right, isolate());
+    }
     return result;
   }
 
@@ -1010,6 +1016,9 @@ Handle<String> FactoryBase<Impl>::NewConsString(DirectHandle<String> left,
   result->set_length(length);
   result->set_first(*left, *mode);
   result->set_second(*right, *mode);
+  if constexpr (std::is_same_v<Impl, Factory>) {
+    ::tainttracking::OnNewConsString(result, *left, *right, isolate());
+  }
   return handle(result, isolate());
 }
 

@@ -5909,26 +5909,21 @@ size_t String::WriteUtf8V2(Isolate* v8_isolate, char* buffer, size_t capacity,
 }
 
 void String::WriteTaint(TaintData* buffer, int start, int length) const {
-  // Stub implementation for taint tracking
-  // This is called by Blink's to_blink_string.cc
-  // TODO: Implement actual taint tracking if needed
   if (buffer == nullptr) return;
 
   int str_length = Length();
   if (start < 0) start = 0;
+  if (start > str_length) return;
   if (length < 0 || start + length > str_length) {
     length = str_length - start;
   }
+  if (length <= 0) return;
 
-  // Initialize taint buffer to 0 (no taint)
-  if (length > 0) {
-    std::memset(buffer, 0, length);
-  }
+  auto str = Utils::OpenDirectHandle(this);
+  ::tainttracking::FlattenTaintData(*str, buffer, start, length);
 }
 
 int64_t String::GetTaintInfo() const {
-  // Stub implementation for taint tracking
-  // Returns 0 indicating no taint information
   return 0;
 }
 

@@ -12,13 +12,20 @@ def main() -> int:
     import re
     source = re.sub(r'/v8/\.\./\.\./v8/', '/v8/', source)
     os.makedirs(out_dir, exist_ok=True)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    src_dir = os.path.abspath(os.path.join(script_dir, "..", ".."))
+    capnp = os.path.join(src_dir, "third_party", "capnproto", "install", "bin",
+                         "capnp")
+    capnpc_cpp = os.path.join(src_dir, "third_party", "capnproto", "install",
+                              "bin", "capnpc-c++")
+    capnp_include = os.path.join(src_dir, "third_party", "capnproto", "src")
     cmd = [
-        "capnp",
+        capnp,
         "compile",
-        "-I/usr/include",
+        "-I" + capnp_include,
         "--src-prefix=" + os.path.dirname(source),
         "-o",
-        f"c++:{out_dir}",
+        f"{capnpc_cpp}:{out_dir}",
         source,
     ]
     return subprocess.call(cmd)

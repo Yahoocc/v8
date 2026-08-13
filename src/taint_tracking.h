@@ -244,6 +244,11 @@ void CopyIn(v8::internal::Tagged<T> dest, const TaintData* source, int offset, i
 template <class T> void FlattenTaintData(
     v8::internal::Tagged<T> source, TaintData* dest, int from_offset, int from_len);
 template <class T, class S>
+void FlattenTaintDataIfTainted(v8::internal::Tagged<T> source,
+                               v8::internal::Tagged<S> dest,
+                               TaintData*& dest_taint, int dest_offset,
+                               int from_offset, int from_len);
+template <class T, class S>
 void FlattenTaint(v8::internal::Tagged<S> source, v8::internal::Tagged<T> dest, int from_offset, int from_len);
 
 // Calculate the size needed to store taint data for a string of given length
@@ -282,10 +287,12 @@ template <class T> void OnNewExternalString(v8::internal::Tagged<T> str, v8::int
 template <class T, class S> void OnNewSubStringCopy(
     T* source, S* dest, int offset, int length, v8::internal::Isolate* isolate);
 template <class T, class S, class R> void OnNewConcatStringCopy(
-    T* dest, S* first, R* second, v8::internal::Isolate* isolate);
-void OnNewConsString(v8::internal::ConsString* target,
-                     v8::internal::String* first,
-                     v8::internal::String* second, v8::internal::Isolate* isolate);
+    v8::internal::Tagged<T> dest, v8::internal::Tagged<S> first,
+    v8::internal::Tagged<R> second, v8::internal::Isolate* isolate);
+void OnNewConsString(v8::internal::Tagged<v8::internal::ConsString> target,
+                     v8::internal::Tagged<v8::internal::String> first,
+                     v8::internal::Tagged<v8::internal::String> second,
+                     v8::internal::Isolate* isolate);
 void OnNewSlicedString(v8::internal::SlicedString* target,
                        v8::internal::String* first,
                        int offset, int length, v8::internal::Isolate* isolate);

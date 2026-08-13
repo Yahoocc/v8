@@ -11,6 +11,7 @@
 #include "v8/logrecord.capnp.h"
 
 // Other V8 imports
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -82,9 +83,18 @@ LogListener* global_log_listener = nullptr;
 std::unordered_map<Address, std::unique_ptr<TaintData[]>>* seq_string_taint_data =
     nullptr;
 
-TaintData* GetSeqStringTaintData(Tagged<SeqString> str) {
+TaintData* FindSeqStringTaintData(Tagged<SeqString> str) {
   if (seq_string_taint_data == nullptr) {
-    seq_string_taint_data = new std::unordered_map<Address, std::unique_ptr<TaintData[]>>();
+    return nullptr;
+  }
+  auto it = seq_string_taint_data->find(str.ptr());
+  return it == seq_string_taint_data->end() ? nullptr : it->second.get();
+}
+
+TaintData* GetOrCreateSeqStringTaintData(Tagged<SeqString> str) {
+  if (seq_string_taint_data == nullptr) {
+    seq_string_taint_data =
+        new std::unordered_map<Address, std::unique_ptr<TaintData[]>>();
   }
   auto& data = (*seq_string_taint_data)[str.ptr()];
   if (!data) {
@@ -94,7 +104,18 @@ TaintData* GetSeqStringTaintData(Tagged<SeqString> str) {
   return data.get();
 }
 
+bool IsUntaintedBuffer(const TaintData* data, int len) {
+  for (int i = 0; i < len; i++) {
+    if (static_cast<TaintType>(data[i]) != TaintType::UNTAINTED) return false;
+  }
+  return true;
+}
+
 class IsTaintedVisitor;
+template <class T>
+TaintData* StringTaintData(Tagged<T> str);
+template <class T>
+TaintData* GetWriteableStringTaintData(Tagged<T> str);
 void InitTaintInfo(const std::vector<std::tuple<TaintType, int>>&,
                    TaintLogRecord::TaintInformation::Builder*);
 
@@ -170,6 +191,14 @@ class TaintVisitor {
     }
 #endif
     Visit(visitee, taint_info, offset, size);
+  }
+
+  template <class T>
+  TaintData* GetTaintDataForVisit(Tagged<T> source) {
+    if (writeable_) {
+      return GetWriteableStringTaintData(source);
+    }
+    return StringTaintData(source);
   }
 
   template <class T>
@@ -910,11 +939,11 @@ template <class T>
 TaintData* StringTaintData(Tagged<T> str);
 template <>
 TaintData* StringTaintData<SeqOneByteString>(Tagged<SeqOneByteString> str) {
-  return GetSeqStringTaintData(Cast<SeqString>(str));
+  return FindSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* StringTaintData<SeqTwoByteString>(Tagged<SeqTwoByteString> str) {
-  return GetSeqStringTaintData(Cast<SeqString>(str));
+  return FindSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* StringTaintData<ExternalOneByteString>(Tagged<ExternalOneByteString> str) {
@@ -943,12 +972,12 @@ TaintData* StringTaintData_TryAllocate(Tagged<T> str) {
 template <>
 TaintData* GetWriteableStringTaintData<SeqOneByteString>(
     Tagged<SeqOneByteString> str) {
-  return StringTaintData(str);
+  return GetOrCreateSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* GetWriteableStringTaintData<SeqTwoByteString>(
     Tagged<SeqTwoByteString> str) {
-  return StringTaintData(str);
+  return GetOrCreateSeqStringTaintData(Cast<SeqString>(str));
 }
 template <>
 TaintData* GetWriteableStringTaintData<ExternalOneByteString>(
@@ -976,7 +1005,8 @@ void MarkNewString(String* str) {
 
 template <class T>
 void InitTaintSeqByteString(Tagged<T> str, TaintType type) {
-  TaintData* data = StringTaintData(str);
+  if (type == TaintType::UNTAINTED) return;
+  TaintData* data = GetOrCreateSeqStringTaintData(Cast<SeqString>(str));
   memset(data, static_cast<int>(type), str->length());
   // TODO: MarkNewString may need to be updated
   // MarkNewString(str);
@@ -1031,13 +1061,21 @@ void TaintVisitor::VisitIntoStringTemplate<SlicedString>(Tagged<SlicedString> so
 }
 
 template <>
+void TaintVisitor::VisitIntoStringTemplate<ThinString>(Tagged<ThinString> source,
+                                                       int from_offset,
+                                                       int from_len) {
+  visitee_stack_.push_back(
+      std::make_tuple(source->actual(), from_offset, from_len));
+}
+
+template <>
 void TaintVisitor::VisitIntoStringTemplate<SeqOneByteString>(
     Tagged<SeqOneByteString> source, int from, int len) {
   DCHECK_GE(from, 0);
   DCHECK_GE(len, 0);
   DCHECK_LE(from + len, source->length());
-  // TODO: GetChars() may need to be updated for new V8 API
-  // DoVisit(source->GetChars(), StringTaintData(source), from, len);
+  DisallowGarbageCollection no_gc;
+  DoVisit(source->GetChars(no_gc), GetTaintDataForVisit(source), from, len);
 }
 
 template <>
@@ -1046,8 +1084,8 @@ void TaintVisitor::VisitIntoStringTemplate<SeqTwoByteString>(
   DCHECK_GE(from, 0);
   DCHECK_GE(len, 0);
   DCHECK_LE(from + len, source->length());
-  // TODO: GetChars() may need to be updated for new V8 API
-  // DoVisit(source->GetChars(), StringTaintData(source), from, len);
+  DisallowGarbageCollection no_gc;
+  DoVisit(source->GetChars(no_gc), GetTaintDataForVisit(source), from, len);
 }
 
 template <>
@@ -1115,6 +1153,8 @@ void TaintVisitor::VisitIntoStringTemplate<String>(Tagged<String> source,
     VisitIntoStringTemplate(Cast<ConsString>(source), from_offset, from_len);
   } else if (shape.IsSliced()) {
     VisitIntoStringTemplate(Cast<SlicedString>(source), from_offset, from_len);
+  } else if (shape.IsThin()) {
+    VisitIntoStringTemplate(Cast<ThinString>(source), from_offset, from_len);
   } else if (shape.IsExternalOneByte()) {
     VisitIntoStringTemplate(Cast<ExternalOneByteString>(source), from_offset,
                             from_len);
@@ -1323,6 +1363,14 @@ TaintType GetTaintStatus(T* object, size_t idx) {
 }
 
 template <class T>
+TaintType GetTaintStatus(Tagged<T> object, size_t idx) {
+  TaintData output;
+  CopyVisitor visitor(&output);
+  visitor.run(object, static_cast<int>(idx), 1);
+  return static_cast<TaintType>(output);
+}
+
+template <class T>
 TaintType GetTaintStatusRange(T* source, size_t idx_start, size_t length) {
   IsTaintedVisitor visitor;
   Tagged<T> tagged_source(source);
@@ -1334,10 +1382,34 @@ TaintType GetTaintStatusRange(T* source, size_t idx_start, size_t length) {
 }
 
 template <class T>
+TaintType GetTaintStatusRange(Tagged<T> source, size_t idx_start, size_t length) {
+  IsTaintedVisitor visitor;
+  visitor.run(source, static_cast<int>(idx_start), static_cast<int>(length));
+  TaintType answer = TaintFlagToType(visitor.GetFlag());
+  // TODO: CheckTaintError requires isolate parameter, but not available here
+  // CheckTaintError(answer, source, isolate);
+  return answer;
+}
+
+template <class T>
 void SetTaintStatus(T* object, size_t idx, TaintType type) {
+  if (type == TaintType::UNTAINTED &&
+      GetTaintStatus(object, idx) == TaintType::UNTAINTED) {
+    return;
+  }
   SingleWritingVisitor visitor(type);
   Tagged<T> tagged_object(object);
   visitor.run(tagged_object, static_cast<int>(idx), 1);
+}
+
+template <class T>
+void SetTaintStatus(Tagged<T> object, size_t idx, TaintType type) {
+  if (type == TaintType::UNTAINTED &&
+      GetTaintStatus(object, idx) == TaintType::UNTAINTED) {
+    return;
+  }
+  SingleWritingVisitor visitor(type);
+  visitor.run(object, static_cast<int>(idx), 1);
 }
 
 template <class T>
@@ -1357,21 +1429,52 @@ void FlattenTaintData(Tagged<T> source, TaintData* dest, int from_offset,
 }
 
 template <class T, class S>
+void FlattenTaintDataIfTainted(Tagged<T> source, Tagged<S> dest,
+                               TaintData*& dest_taint, int dest_offset,
+                               int from_offset, int from_len) {
+  if (from_len == 0) return;
+  if (GetTaintStatusRange(source, from_offset, from_len) == TaintType::UNTAINTED) {
+    return;
+  }
+  if (dest_taint == nullptr) {
+    dest_taint = GetWriteableStringTaintData(dest);
+  }
+  FlattenTaintData(source, dest_taint + dest_offset, from_offset, from_len);
+}
+
+template <class T, class S>
+void FlattenTaint(Tagged<S> source, Tagged<T> dest, int from_offset, int from_len) {
+  DCHECK_GE(from_offset, 0);
+  DCHECK_GE(source->length(), from_offset + from_len);
+  DCHECK_GE(dest->length(), from_len);
+  if (GetTaintStatusRange(source, from_offset, from_len) == TaintType::UNTAINTED) {
+    return;
+  }
+  FlattenTaintData(source, GetWriteableStringTaintData(dest), from_offset,
+                   from_len);
+}
+
+template <class T, class S>
 void FlattenTaint(S* source, T* dest, int from_offset, int from_len) {
   DCHECK_GE(from_offset, 0);
   DCHECK_GE(source->length(), from_offset + from_len);
   DCHECK_GE(dest->length(), from_len);
+  if (GetTaintStatusRange(source, from_offset, from_len) == TaintType::UNTAINTED) {
+    return;
+  }
   FlattenTaintData(source, GetWriteableStringTaintData(dest), from_offset,
                    from_len);
 }
 
 template <class T, class One, class Two>
-void ConcatTaint(T* result, One* first, Two* second) {
+void ConcatTaint(Tagged<T> result, Tagged<One> first, Tagged<Two> second) {
+  if (GetTaintStatusRange(first, 0, first->length()) == TaintType::UNTAINTED &&
+      GetTaintStatusRange(second, 0, second->length()) == TaintType::UNTAINTED) {
+    return;
+  }
   CopyVisitor visitor(GetWriteableStringTaintData(result));
-  Tagged<One> tagged_first(first);
-  Tagged<Two> tagged_second(second);
-  visitor.run(tagged_first, 0, first->length());
-  visitor.run(tagged_second, 0, second->length());
+  visitor.run(first, 0, first->length());
+  visitor.run(second, 0, second->length());
 }
 
 template <class T>
@@ -1391,6 +1494,10 @@ void CopyOut(Tagged<T> source, TaintData* dest, int offset, int len) {
 template <class T>
 void CopyIn(T* dest, TaintType source, int offset, int len) {
   DCHECK_GE(dest->length(), len);
+  if (source == TaintType::UNTAINTED &&
+      GetTaintStatusRange(dest, offset, len) == TaintType::UNTAINTED) {
+    return;
+  }
   SingleWritingVisitor visitor(source);
   Tagged<T> tagged_dest(dest);
   visitor.run(tagged_dest, offset, len);
@@ -1400,12 +1507,20 @@ void CopyIn(T* dest, TaintType source, int offset, int len) {
 template <class T>
 void CopyIn(Tagged<T> dest, TaintType source, int offset, int len) {
   DCHECK_GE(dest->length(), len);
+  if (source == TaintType::UNTAINTED &&
+      GetTaintStatusRange(dest, offset, len) == TaintType::UNTAINTED) {
+    return;
+  }
   SingleWritingVisitor visitor(source);
   visitor.run(dest, offset, len);
 }
 
 template <class T>
 void CopyIn(T* dest, const TaintData* source, int offset, int len) {
+  if (IsUntaintedBuffer(source, len) &&
+      GetTaintStatusRange(dest, offset, len) == TaintType::UNTAINTED) {
+    return;
+  }
   WritingVisitor visitor(source);
   Tagged<T> tagged_dest(dest);
   visitor.run(tagged_dest, offset, len);
@@ -1414,6 +1529,10 @@ void CopyIn(T* dest, const TaintData* source, int offset, int len) {
 // Overload for Tagged<T>
 template <class T>
 void CopyIn(Tagged<T> dest, const TaintData* source, int offset, int len) {
+  if (IsUntaintedBuffer(source, len) &&
+      GetTaintStatusRange(dest, offset, len) == TaintType::UNTAINTED) {
+    return;
+  }
   WritingVisitor visitor(source);
   visitor.run(dest, offset, len);
 }
@@ -1467,48 +1586,52 @@ std::vector<std::tuple<TaintType, int>> InitTaintRanges(Handle<String> target) {
   switch (label) {
     case TaintSinkLabel::URL_SINK:
       return ::TaintLogRecord::SinkType::URL;
-    // TODO: These sink types don't exist in new V8 TaintSinkLabel enum
-    // case TaintSinkLabel::EMBED_SRC_SINK:
-    //   return TaintLogRecord::SinkType::EMBED_SRC_SINK;
-    // case TaintSinkLabel::IFRAME_SRC_SINK:
-    //   return TaintLogRecord::SinkType::IFRAME_SRC_SINK;
-    // case TaintSinkLabel::ANCHOR_SRC_SINK:
-    //   return TaintLogRecord::SinkType::ANCHOR_SRC_SINK;
-    // case TaintSinkLabel::IMG_SRC_SINK:
-    //   return TaintLogRecord::SinkType::IMG_SRC_SINK;
-    // case TaintSinkLabel::SCRIPT_SRC_URL_SINK:
-    //   return TaintLogRecord::SinkType::SCRIPT_SRC_URL_SINK;
-    // case TaintSinkLabel::JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE:
-    //   return TaintLogRecord::SinkType::JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE;
+    case TaintSinkLabel::EMBED_SRC_SINK:
+      return ::TaintLogRecord::SinkType::EMBED_SRC_SINK;
+    case TaintSinkLabel::IFRAME_SRC_SINK:
+      return ::TaintLogRecord::SinkType::IFRAME_SRC_SINK;
+    case TaintSinkLabel::ANCHOR_SRC_SINK:
+      return ::TaintLogRecord::SinkType::ANCHOR_SRC_SINK;
+    case TaintSinkLabel::IMG_SRC_SINK:
+      return ::TaintLogRecord::SinkType::IMG_SRC_SINK;
+    case TaintSinkLabel::SCRIPT_SRC_URL_SINK:
+      return ::TaintLogRecord::SinkType::SCRIPT_SRC_URL_SINK;
     case TaintSinkLabel::JAVASCRIPT:
       return ::TaintLogRecord::SinkType::JAVASCRIPT;
+    case TaintSinkLabel::ONEVENT:
+    case TaintSinkLabel::JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE:
+      return ::TaintLogRecord::SinkType::JAVASCRIPT_EVENT_HANDLER_ATTRIBUTE;
     case TaintSinkLabel::HTML:
+    case TaintSinkLabel::DOCUMENT_WRITE:
+    case TaintSinkLabel::DOCUMENT_WRITELN:
+    case TaintSinkLabel::INNERHTML:
+    case TaintSinkLabel::OUTERHTML:
+    case TaintSinkLabel::INSERTADJACENTHTML:
       return ::TaintLogRecord::SinkType::HTML;
-    // TODO: These sink types don't exist in new V8 TaintSinkLabel enum
-    // case TaintSinkLabel::MESSAGE_DATA:
-    //   return ::TaintLogRecord::SinkType::MESSAGE_DATA;
-    // case TaintSinkLabel::COOKIE_SINK:
-    //   return ::TaintLogRecord::SinkType::COOKIE;
-    // case TaintSinkLabel::STORAGE_SINK:
-    //   return ::TaintLogRecord::SinkType::STORAGE;
-    // case TaintSinkLabel::ORIGIN:
-    //   return ::TaintLogRecord::SinkType::ORIGIN;
-    // case TaintSinkLabel::DOM_URL:
-    //   return ::TaintLogRecord::SinkType::DOM_URL;
-    // case TaintSinkLabel::ELEMENT:
-    //   return ::TaintLogRecord::SinkType::ELEMENT;
-    // case TaintSinkLabel::JAVASCRIPT_URL:
-    //   return ::TaintLogRecord::SinkType::JAVASCRIPT_URL;
-    // case TaintSinkLabel::CSS:
-    //   return ::TaintLogRecord::SinkType::CSS;
-    // case TaintSinkLabel::CSS_STYLE_ATTRIBUTE:
-    //   return ::TaintLogRecord::SinkType::CSS_STYLE_ATTRIBUTE;
-    // case TaintSinkLabel::JAVASCRIPT_SET_TIMEOUT:
-    //   return ::TaintLogRecord::SinkType::JAVASCRIPT_SET_TIMEOUT;
-    // case TaintSinkLabel::JAVASCRIPT_SET_INTERVAL:
-    //   return ::TaintLogRecord::SinkType::JAVASCRIPT_SET_INTERVAL;
+    case TaintSinkLabel::COOKIE_SINK:
+      return ::TaintLogRecord::SinkType::COOKIE;
+    case TaintSinkLabel::CSS_STYLE_ATTRIBUTE:
+      return ::TaintLogRecord::SinkType::CSS_STYLE_ATTRIBUTE;
+    case TaintSinkLabel::SETTIMEOUT:
+    case TaintSinkLabel::JAVASCRIPT_SET_TIMEOUT:
+      return ::TaintLogRecord::SinkType::JAVASCRIPT_SET_TIMEOUT;
+    case TaintSinkLabel::SETINTERVAL:
+    case TaintSinkLabel::JAVASCRIPT_SET_INTERVAL:
+      return ::TaintLogRecord::SinkType::JAVASCRIPT_SET_INTERVAL;
     case TaintSinkLabel::LOCATION_ASSIGN:
+    case TaintSinkLabel::LOCATION_ASSIGNMENT:
       return ::TaintLogRecord::SinkType::LOCATION_ASSIGNMENT;
+    case TaintSinkLabel::SCRIPT_SRC:
+    case TaintSinkLabel::SCRIPT_TEXTCONTENT:
+    case TaintSinkLabel::SCRIPT_INNERTEXT:
+      return ::TaintLogRecord::SinkType::JAVASCRIPT;
+    case TaintSinkLabel::EVAL:
+      return ::TaintLogRecord::SinkType::JAVASCRIPT;
+    case TaintSinkLabel::LOCATION:
+    case TaintSinkLabel::LOCATION_HREF:
+    case TaintSinkLabel::LOCATION_REPLACE:
+    case TaintSinkLabel::WINDOW_OPEN:
+      return ::TaintLogRecord::SinkType::URL;
     default:
       UNREACHABLE();
   }
@@ -1628,7 +1751,7 @@ int64_t LogIfTainted(IsTaintedVisitor& visitor,
   // Temporarily disable taint logging to debug hang issue
   // return NO_MESSAGE;
 
-  if ((visitor.GetFlag() & static_cast<TaintFlag>(TaintType::UNTAINTED)) &&
+  if (visitor.GetFlag() == kTaintFlagUntainted &&
       !v8_flags.taint_tracking_sources_sinks_to_logs) {
     return NO_MESSAGE;
   }
@@ -1939,12 +2062,26 @@ bool TaintTracker::IsRewriteAstEnabled() {
 
 void TaintTracker::Impl::Initialize(v8::internal::Isolate* isolate) {
   const char* taint_log_file = v8_flags.taint_log_file;
+  fprintf(stderr,
+          "[taint] Initialize pid=%d isolate=%p taint_log_file='%s' "
+          "sources_sinks_to_logs=%d\n",
+          v8::base::OS::GetCurrentProcessId(), static_cast<void*>(isolate),
+          taint_log_file != nullptr ? taint_log_file : "(null)",
+          v8_flags.taint_tracking_sources_sinks_to_logs ? 1 : 0);
   if (taint_log_file != nullptr && taint_log_file[0] != '\0') {
     std::lock_guard<std::mutex> guard(log_mutex_);
     is_logging_ = true;
 
     std::unique_ptr<std::ofstream> oflog(new std::ofstream());
-    oflog->open(LogFileName());
+    std::string log_file_name = LogFileName();
+    errno = 0;
+    oflog->open(log_file_name);
+    fprintf(stderr,
+            "[taint] open log pid=%d file='%s' is_open=%d fail=%d bad=%d "
+            "errno=%d (%s)\n",
+            v8::base::OS::GetCurrentProcessId(), log_file_name.c_str(),
+            oflog->is_open(), oflog->fail(), oflog->bad(), errno,
+            strerror(errno));
     std::swap(log_, oflog);
     buffer_log_storage_ = kj::heapArray<uint8_t>(kLogBufferSize);
     kj_log_.reset(new ::kj::std::StdOutputStream(*log_));
@@ -2062,9 +2199,9 @@ v8::internal::Handle<v8::internal::HeapObject> JSTaintConstants(
 }
 
 template void OnNewConcatStringCopy<SeqOneByteString, String, String>(
-    SeqOneByteString*, String*, String*, Isolate*);
+    Tagged<SeqOneByteString>, Tagged<String>, Tagged<String>, Isolate*);
 template void OnNewConcatStringCopy<SeqTwoByteString, String, String>(
-    SeqTwoByteString*, String*, String*, Isolate*);
+    Tagged<SeqTwoByteString>, Tagged<String>, Tagged<String>, Isolate*);
 
 template void OnNewSubStringCopy<String, SeqOneByteString>(String*,
                                                            SeqOneByteString*,
@@ -2091,14 +2228,37 @@ template void FlattenTaintData<String>(Tagged<String>, TaintData*, int, int);
 template void FlattenTaintData<ExternalString>(Tagged<ExternalString>, TaintData*, int, int);
 
 template TaintType GetTaintStatusRange<String>(String*, size_t, size_t);
+template TaintType GetTaintStatusRange<String>(Tagged<String>, size_t, size_t);
+template TaintType GetTaintStatusRange<SeqString>(Tagged<SeqString>, size_t,
+                                                   size_t);
 
 template TaintType GetTaintStatus<String>(String*, size_t);
+template TaintType GetTaintStatus<String>(Tagged<String>, size_t);
+
+template void FlattenTaintDataIfTainted<String, SeqString>(
+    Tagged<String>, Tagged<SeqString>, TaintData*&, int, int, int);
+template void FlattenTaintDataIfTainted<String, SeqOneByteString>(
+    Tagged<String>, Tagged<SeqOneByteString>, TaintData*&, int, int, int);
+template void FlattenTaintDataIfTainted<String, SeqTwoByteString>(
+    Tagged<String>, Tagged<SeqTwoByteString>, TaintData*&, int, int, int);
+
+template void FlattenTaint<SeqOneByteString, String>(Tagged<String>,
+                                                     Tagged<SeqOneByteString>,
+                                                     int, int);
+template void FlattenTaint<SeqTwoByteString, String>(Tagged<String>,
+                                                     Tagged<SeqTwoByteString>,
+                                                     int, int);
 
 template void SetTaintStatus<SeqOneByteString>(SeqOneByteString*, size_t,
                                                TaintType);
 template void SetTaintStatus<SeqTwoByteString>(SeqTwoByteString*, size_t,
                                                TaintType);
 template void SetTaintStatus<String>(String*, size_t, TaintType);
+template void SetTaintStatus<SeqOneByteString>(Tagged<SeqOneByteString>, size_t,
+                                               TaintType);
+template void SetTaintStatus<SeqTwoByteString>(Tagged<SeqTwoByteString>, size_t,
+                                               TaintType);
+template void SetTaintStatus<String>(Tagged<String>, size_t, TaintType);
 
 template void CopyIn<SeqOneByteString>(SeqOneByteString*, TaintType, int, int);
 
@@ -2209,15 +2369,16 @@ void OnNewSlicedString(SlicedString* target, String* first, int offset,
 }
 
 template <class T, class S, class R>
-void OnNewConcatStringCopy(T* dest, S* first, R* second, Isolate* isolate) {
+void OnNewConcatStringCopy(Tagged<T> dest, Tagged<S> first,
+                           Tagged<R> second, Isolate* isolate) {
   ConcatTaint(dest, first, second);
   if (v8_flags.taint_tracking_enable_symbolic) {
     LogSymbolic<2>(dest, {{first, second}}, "", CONCAT, isolate);
   }
 }
 
-void OnNewConsString(ConsString* target, String* first, String* second, Isolate* isolate) {
-  MarkNewString(target);
+void OnNewConsString(Tagged<ConsString> target, Tagged<String> first,
+                     Tagged<String> second, Isolate* isolate) {
   if (v8_flags.taint_tracking_enable_symbolic) {
     LogSymbolic<2>(target, {{first, second}}, "", CONCAT, isolate);
   }

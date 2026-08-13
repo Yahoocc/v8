@@ -37,6 +37,10 @@ void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
                                uint32_t array_length,
                                ::tainttracking::TaintData* taint_sink);
 
+bool StringBuilderConcatHasTaint(Tagged<String> special,
+                                 Tagged<FixedArray> fixed_array,
+                                 uint32_t array_length);
+
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
 int StringBuilderConcatLength(int special_length,

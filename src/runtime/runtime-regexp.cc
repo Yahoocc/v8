@@ -620,16 +620,16 @@ StringReplaceGlobalAtomRegExpWithString(
   DirectHandle<ResultSeqString> result = Cast<ResultSeqString>(untyped_res);
 
   DisallowGarbageCollection no_gc;
-  ::tainttracking::TaintData* data =
-      ::tainttracking::GetWriteableStringTaintData(*result);
+  ::tainttracking::TaintData* data = nullptr;
   for (int index : *indices) {
     // Copy non-matched subject content.
     if (subject_pos < index) {
       int len = index - subject_pos;
       String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
                           subject_pos, len);
-      ::tainttracking::FlattenTaintData(*subject, data + result_pos, subject_pos,
-                                        len);
+      ::tainttracking::FlattenTaintDataIfTainted(*subject, *result, data,
+                                                  result_pos, subject_pos,
+                                                  len);
       result_pos += len;
     }
 
@@ -637,8 +637,9 @@ StringReplaceGlobalAtomRegExpWithString(
     if (replacement_len > 0) {
       String::WriteToFlat(*replacement, result->GetChars(no_gc) + result_pos, 0,
                           replacement_len);
-      ::tainttracking::FlattenTaintData(*replacement, data + result_pos, 0,
-                                        replacement_len);
+      ::tainttracking::FlattenTaintDataIfTainted(*replacement, *result, data,
+                                                  result_pos, 0,
+                                                  replacement_len);
       result_pos += replacement_len;
     }
 
@@ -649,8 +650,9 @@ StringReplaceGlobalAtomRegExpWithString(
     int len = subject_len - subject_pos;
     String::WriteToFlat(*subject, result->GetChars(no_gc) + result_pos,
                         subject_pos, len);
-    ::tainttracking::FlattenTaintData(*subject, data + result_pos, subject_pos,
-                                      len);
+    ::tainttracking::FlattenTaintDataIfTainted(*subject, *result, data,
+                                                result_pos, subject_pos,
+                                                len);
   }
 
   int32_t match_indices[] = {indices->back(), indices->back() + pattern_len};
@@ -806,8 +808,7 @@ StringReplaceGlobalRegExpWithEmptyString(
   int position = 0;
 
   DisallowGarbageCollection no_gc;
-  ::tainttracking::TaintData* taint_data =
-      ::tainttracking::GetWriteableStringTaintData(*answer);
+  ::tainttracking::TaintData* taint_data = nullptr;
   do {
     start = current_match[0];
     end = current_match[1];
@@ -816,8 +817,9 @@ StringReplaceGlobalRegExpWithEmptyString(
       int len = start - prev;
       String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                           len);
-      ::tainttracking::FlattenTaintData(*subject, taint_data + position, prev,
-                                      len);
+      ::tainttracking::FlattenTaintDataIfTainted(*subject, *answer,
+                                                  taint_data, position, prev,
+                                                  len);
       position += len;
     }
     prev = end;
@@ -835,8 +837,9 @@ StringReplaceGlobalRegExpWithEmptyString(
     int len = subject_length - prev;
     String::WriteToFlat(*subject, answer->GetChars(no_gc) + position, prev,
                         len);
-    ::tainttracking::FlattenTaintData(*subject, taint_data + position, prev,
-                                    len);
+    ::tainttracking::FlattenTaintDataIfTainted(*subject, *answer,
+                                                taint_data, position, prev,
+                                                len);
     position += len;
   }
 
